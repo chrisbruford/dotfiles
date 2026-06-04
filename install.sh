@@ -3,6 +3,8 @@
 # Runs on every workspace start and on manual refresh — must be idempotent.
 set -euo pipefail
 
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # --- Git identity ---
 git config --global user.name  "Chris Bruford"
 git config --global user.email "chris.bruford@liberis.com"
@@ -11,8 +13,23 @@ git config --global pull.rebase false
 git config --global init.defaultBranch main
 git config --global push.autoSetupRemote true
 
-# --- Shell aliases ---
-# Guarded by a sentinel comment so the block is added at most once.
+# --- Zsh + oh-my-zsh + powerlevel10k ---
+"$DOTFILES_DIR/scripts/setup-zsh.sh"
+
+# --- Place zsh config (overwrite on each run so updates land automatically) ---
+cp "$DOTFILES_DIR/config/.zshrc" "$HOME/.zshrc"
+cp "$DOTFILES_DIR/.p10k.zsh"    "$HOME/.p10k.zsh"
+
+# --- Switch interactive bash sessions to zsh ---
+if ! grep -q '# dotfiles: exec zsh' ~/.bashrc 2>/dev/null; then
+  cat >> ~/.bashrc << 'EOF'
+
+# dotfiles: exec zsh
+[[ -z "$ZSH_VERSION" && $- == *i* ]] && command -v zsh &>/dev/null && exec zsh
+EOF
+fi
+
+# --- Bash fallback aliases (used if zsh setup fails) ---
 if ! grep -q '# dotfiles: shell aliases' ~/.bashrc 2>/dev/null; then
   cat >> ~/.bashrc << 'EOF'
 
