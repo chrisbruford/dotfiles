@@ -14,6 +14,8 @@ git config --global init.defaultBranch main
 git config --global push.autoSetupRemote true
 
 # --- Zsh + oh-my-zsh + powerlevel10k ---
+# Set zsh as the login shell (idempotent)
+sudo usermod -s /usr/bin/zsh engineer
 "$DOTFILES_DIR/scripts/setup-zsh.sh"
 
 # --- Place zsh config (overwrite on each run so updates land automatically) ---
