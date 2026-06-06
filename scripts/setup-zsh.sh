@@ -30,4 +30,8 @@ if [[ ! -d "$AUTOSUGGEST_DIR" ]]; then
   git clone https://github.com/zsh-users/zsh-autosuggestions "$AUTOSUGGEST_DIR"
 fi
 
+# oh-my-zsh refuses to load completions from group/other-writable dirs.
+# Workspaces often inherit setgid from parent dirs, so fix permissions explicitly.
+chmod -R g-w,o-w "$HOME/.oh-my-zsh"
+
 echo "setup-zsh: done"
