@@ -8,6 +8,11 @@ if ! command -v zsh &>/dev/null; then
   sudo apt-get update -qq && sudo apt-get install -y -qq zsh
 fi
 
+if ! command -v tmux &>/dev/null; then
+  echo "setup-zsh: installing tmux..."
+  sudo apt-get update -qq && sudo apt-get install -y -qq tmux
+fi
+
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
   echo "setup-zsh: installing oh-my-zsh..."
   RUNZSH=no CHSH=no sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
