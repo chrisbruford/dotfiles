@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tmux Sub Orchestrator"
+  short_description: "Worker contract for tmux orchestration"
+  default_prompt: "Use $tmux-sub-orchestrator to deliver an assigned tmux-orchestrated task and report status to the supervisor."

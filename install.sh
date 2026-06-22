@@ -61,4 +61,11 @@ set incsearch
 syntax on
 VIMRC
 
+# --- Claude Code user-level configuration ---
+if command -v claude &>/dev/null; then
+  "$DOTFILES_DIR/scripts/setup-claude.sh"
+else
+  echo "dotfiles: claude not found, skipping Claude Code setup"
+fi
+
 echo "dotfiles: applied successfully"

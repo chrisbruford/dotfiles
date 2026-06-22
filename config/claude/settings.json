@@ -1,0 +1,139 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
+    "CLAUDE_CODE_NO_FLICKER": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Edit(~/.claude/todos/**)",
+      "Read(~/.claude/todos/**)",
+      "Write(~/.claude/todos/**)",
+      "Edit(~/.claude/research/**)",
+      "Write(~/.claude/research/**)",
+      "Read(~/.claude/plans/**)",
+      "Write(~/.claude/plans/**)",
+      "Edit(~/.claude/plans/**)",
+      "Read(~/.claude/implements/**)",
+      "Write(~/.claude/implements/**)",
+      "Edit(~/.claude/implements/**)",
+      "Bash(find:*)",
+      "mcp__ide__getDiagnostics",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test)",
+      "Bash(dotnet test:*)",
+      "Bash(rg:*)",
+      "Bash(dotnet run:*)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(ls:*)",
+      "Bash(make:*)",
+      "WebFetch(domain:learn.microsoft.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(git log:*)",
+      "Bash(dotnet ef migrations add:*)",
+      "WebSearch",
+      "Bash(dotnet add package:*)",
+      "Bash(dotnet remove package:*)",
+      "Bash(docker-compose:*)",
+      "Bash(docker-compose logs:*)",
+      "Bash(docker compose:*)",
+      "Bash(docker compose logs:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:simple.wikipedia.org)",
+      "mcp__github__get_pull_request",
+      "mcp__github__get_pull_request_files",
+      "mcp__github__get_pull_request_diff",
+      "Bash(test:*)",
+      "Bash(timeout:*)",
+      "mcp__github__get_pull_request_comments",
+      "Bash(dotnet sln add:*)",
+      "Bash(dotnet sln:*)",
+      "Bash(git diff:*)",
+      "Bash(git branch:*)",
+      "Bash(dotnet list:*)",
+      "mcp__github__pull_request_read",
+      "mcp__github__get_file_contents",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(tree:*)",
+      "Bash(dotnet tool restore:*)",
+      "Bash(git restore:*)",
+      "Bash(git grep:*)",
+      "Bash(git show:*)",
+      "mcp__linear-server__list_teams",
+      "mcp__linear-server__list_cycles",
+      "mcp__linear-server__get_issue",
+      "Bash(grep:*)",
+      "Bash(docker ps:*)",
+      "Bash(gh pr view:*)",
+      "Bash(dotnet tool list:*)",
+      "mcp__github__get_me",
+      "Bash(xargs cat:*)",
+      "Bash(git commit:*)",
+      "mcp__context7__query-docs",
+      "Bash(dotnet restore:*)",
+      "Bash(gh repo view:*)",
+      "WebFetch(domain:www.npgsql.org)",
+      "Bash(basename $PWD:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "mcp__claude_ai_Linear__get_issue",
+      "mcp__claude_ai_Linear__create_comment",
+      "Bash(echo exit: $?:*)",
+      "Bash(git fetch:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(git status:*)",
+      "Bash(gh pr:*)",
+      "WebFetch(domain:miro.com)",
+      "mcp__claude_ai_Miro__context_explore",
+      "mcp__claude_ai_Miro__context_get",
+      "mcp__claude_ai_Miro__diagram_get_dsl"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python ~/.claude/hooks/langfuse_hook.py"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash __HOME__/.claude/statusline-command.sh"
+  },
+  "enabledPlugins": {
+    "ralph-loop@claude-plugins-official": true,
+    "liberis-arch-doc@liberis-arch-doc": true,
+    "frontend-design@claude-plugins-official": true,
+    "spec-deliver@spec-deliver": true,
+    "claude-md-management@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "pyright-lsp@claude-plugins-official": true,
+    "csharp-lsp@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "spec-deliver": {
+      "source": {
+        "source": "github",
+        "repo": "LiberisFinance/spec-deliver-claude-plugin"
+      }
+    }
+  },
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "xhigh",
+  "voice": {
+    "enabled": true,
+    "mode": "hold"
+  },
+  "skipWorkflowUsageWarning": true,
+  "remoteControlAtStartup": true,
+  "agentPushNotifEnabled": true,
+  "voiceEnabled": true
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tmux Super Orchestrator"
+  short_description: "Coordinate Claude workstreams in tmux"
+  default_prompt: "Use $tmux-super-orchestrator to coordinate a large project across Claude sub-orchestrators in tmux."
