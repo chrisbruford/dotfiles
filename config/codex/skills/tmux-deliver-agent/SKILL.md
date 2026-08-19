@@ -1,5 +1,5 @@
 ---
-name: tmux-deliver-agent-codex
+name: tmux-deliver-agent
 description: Worker contract for a Codex CLI instance launched in a tmux window by the tmux-deliver orchestrator, in either the implementer role (deliver one work unit strictly test-first with red-to-green evidence, commit, report) or the qa/adversarial reviewer role (read-only review of one unit's diff on gpt-5.6-sol, producing a verdict file without modifying the worktree). Use when a Codex session starts with a tmux-deliver prompt naming a ROLE, UNIT, WORKSPACE and report commands.
 ---
 

@@ -456,15 +456,17 @@ def skill_dir() -> Path:
 
 
 def agent_skill_path(runtime: str) -> Path:
-    return skill_dir().parent / f"tmux-deliver-agent-{runtime}"
+    if runtime == "codex":
+        return Path.home() / ".codex" / "skills" / "tmux-deliver-agent"
+    return skill_dir().parent / "tmux-deliver-agent"
 
 
 def skill_invocation(runtime: str) -> str:
     path = agent_skill_path(runtime)
     if runtime == "codex":
         # Codex resolves skills by an explicit path reference.
-        return f"Use $tmux-deliver-agent-codex at {path}."
-    return f"Use the `tmux-deliver-agent-claude` skill (at {path})."
+        return f"Use $tmux-deliver-agent at {path}."
+    return f"Use the `tmux-deliver-agent` skill (at {path})."
 
 
 def report_command(script: Path, state_dir: Path, unit_id: str, role: str, round_no: int) -> str:

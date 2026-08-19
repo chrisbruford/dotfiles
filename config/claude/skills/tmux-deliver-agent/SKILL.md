@@ -1,5 +1,5 @@
 ---
-name: tmux-deliver-agent-claude
+name: tmux-deliver-agent
 description: Worker contract for a Claude Code instance launched as a delivery agent by the tmux-deliver orchestrator. Use when a Claude session starts in a tmux window with a tmux-deliver prompt, must verify it is in the correct per-unit git worktree, deliver one work unit strictly test-first with red-to-green evidence, commit its own work, and report running, blocked, failed, and done status through tmux_deliver.py.
 user-invocable: false
 ---

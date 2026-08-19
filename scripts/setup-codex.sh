@@ -20,7 +20,7 @@ for skill in azure-ad-sso liberis-brand pr-merge-ready tracey; do
   ln -sfn "$HOME/.claude/skills/$skill" "$CODEX_DIR/skills/$skill"
 done
 
-# --- Codex-only skills (deliver variant, tmux-deliver-agent-codex): copy directly ---
+# --- Codex-only skills (deliver variant, tmux-deliver-agent): copy directly ---
 rsync -a "$CODEX_SRC/skills/" "$CODEX_DIR/skills/"
 
 echo "codex: configuration applied"
