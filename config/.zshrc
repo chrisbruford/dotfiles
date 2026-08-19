@@ -29,4 +29,6 @@ alias gcb='git checkout -b'
 alias gst='git stash'
 alias gpop='git stash pop'
 
+[[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases
+
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh

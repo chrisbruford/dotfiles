@@ -1,0 +1,19 @@
+{
+  "marketplaces": [
+    { "name": "claude-plugins-official", "source": "anthropics/claude-plugins-official" },
+    { "name": "liberis-claude-code-toolkit", "source": "https://github.com/LiberisFinance/claude-code-toolkit.git" },
+    { "name": "liberis-arch-doc", "source": "LiberisFinance/arch-doc-plugin" },
+    { "name": "spec-deliver", "source": "LiberisFinance/spec-deliver-claude-plugin" }
+  ],
+  "plugins": [
+    "ralph-loop@claude-plugins-official",
+    "frontend-design@claude-plugins-official",
+    "claude-md-management@claude-plugins-official",
+    "claude-code-setup@claude-plugins-official",
+    "typescript-lsp@claude-plugins-official",
+    "pyright-lsp@claude-plugins-official",
+    "csharp-lsp@claude-plugins-official",
+    "liberis-arch-doc@liberis-arch-doc",
+    "spec-deliver@spec-deliver"
+  ]
+}
