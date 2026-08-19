@@ -12,7 +12,7 @@ function coder-workspace-create() {
   gh api repos/LiberisFinance/coder-workspaces/contents/install.sh \
     -H "Accept: application/vnd.github.raw" | bash \
     && coder create "$name" --template engineer \
-    --parameter dotfiles_uri="https://github.com/LiberisFinance/dotfiles-csb" \
+    --parameter dotfiles_uri="https://github.com/chrisbruford/dotfiles" \
     --parameter dotfiles_branch="main" \
     && coder-credentials "$name"
 }
