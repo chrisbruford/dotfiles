@@ -1,0 +1,18 @@
+alias gauth="gcloud auth login && gcloud auth application-default login"
+
+function coder-workspace-create() {
+  local name="$1"
+  if [[ -z "$name" ]]; then
+    echo "Usage: coder-workspace-create <workspace-name>"
+    return 1
+  fi
+  # Engineer credentials are no longer Coder parameters — coder-credentials
+  # bulk-sets them into the workspace's credential PVC after creation.
+  # See docs/provisioning.md.
+  gh api repos/LiberisFinance/coder-workspaces/contents/install.sh \
+    -H "Accept: application/vnd.github.raw" | bash \
+    && coder create "$name" --template engineer \
+    --parameter dotfiles_uri="https://github.com/LiberisFinance/dotfiles-csb" \
+    --parameter dotfiles_branch="main" \
+    && coder-credentials "$name"
+}

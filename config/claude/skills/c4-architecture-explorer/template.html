@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>C4 Architecture Explorer</title>
+<meta name="description" content="Interactive C4 architecture explorer — System Context, Container, Component, Code and Deployment. Click an element to zoom in." />
+<style>
+  @import url("https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@125,400;125,600;125,700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=Fragment+Mono&display=swap");
+
+  /* ---------- Brand tokens (Liberis) ---------- */
+  :root {
+    --ash: #232C2F;
+    --ash-deep: #1B2225;
+    --ash-line: #313B3E;
+    --light-grey: #F4F4EC;
+    --mid-light-grey: #E9E9DE;
+    --mid-grey: #D4D4C3;
+    --dark-grey: #B3B3AA;
+    --white: #FFFFFF;
+
+    --neon: #E7FF7C;
+    --teal: #52F6BF;
+    --olive: #A1A553;
+    --powder: #ABB6F4;
+    --indigo: #584BF0;
+    --tangerine: #FFB175;
+    --dahlia: #E65CFD;
+    --red: #CD1900;
+
+    --surface: rgba(244, 244, 236, 0.045);
+    --surface-2: rgba(244, 244, 236, 0.07);
+    --hairline: rgba(244, 244, 236, 0.14);
+    --hairline-strong: rgba(244, 244, 236, 0.26);
+    --text: var(--light-grey);
+    --text-muted: var(--dark-grey);
+
+    --edge: rgba(244, 244, 236, 0.34);
+
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --zoom-ms: 560ms;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  html { background: var(--ash-deep); }
+  body {
+    margin: 0;
+    height: 100vh;
+    overflow: hidden;
+    background: var(--ash);
+    color: var(--text);
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* faint schematic grid */
+  body::before {
+    content: "";
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(to right, rgba(244,244,236,0.026) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(244,244,236,0.026) 1px, transparent 1px);
+    background-size: 46px 46px;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+
+  .app { position: relative; z-index: 1; height: 100vh; display: grid; grid-template-rows: auto auto 1fr; }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    padding: 14px clamp(16px, 3vw, 36px);
+    background: var(--ash-deep);
+    border-bottom: 1px solid var(--ash-line);
+  }
+  .brand { display: flex; align-items: center; gap: 13px; min-width: 0; margin-right: auto; }
+  .ribbon {
+    flex: none; width: 34px; height: 20px; display: grid;
+    grid-template-columns: 14px 8px 12px;
+    border: 1px solid var(--hairline); border-radius: 3px; overflow: hidden;
+  }
+  .ribbon span:nth-child(1) { background: var(--neon); }
+  .ribbon span:nth-child(2) { background: var(--teal); }
+  .ribbon span:nth-child(3) { background: var(--powder); }
+  .brand-eyebrow {
+    font-family: "Fragment Mono", monospace; font-size: 10.5px;
+    letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted);
+  }
+  .brand-title {
+    font-family: "Archivo", sans-serif; font-weight: 600;
+    font-size: clamp(15px, 2vw, 18px); letter-spacing: -0.02em; line-height: 1.1; color: var(--text);
+  }
+
+  .tabs { display: flex; gap: 6px; background: var(--ash); padding: 4px; border-radius: 999px; border: 1px solid var(--ash-line); }
+  .tab {
+    border: none; background: transparent; color: var(--text-muted);
+    font-family: "Fragment Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 8px 15px; border-radius: 999px; transition: all 160ms var(--ease); white-space: nowrap;
+  }
+  .tab:hover { color: var(--text); }
+  .tab[aria-selected="true"] { background: var(--neon); color: var(--ash); }
+
+  .topbar-actions { display: flex; align-items: center; gap: 9px; }
+  .pill-btn {
+    display: inline-flex; align-items: center; gap: 7px; padding: 9px 14px; border-radius: 999px;
+    border: 1px solid var(--hairline-strong); background: transparent; color: var(--text);
+    font-family: "Fragment Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+    transition: background 140ms var(--ease), border-color 140ms var(--ease), opacity 140ms;
+  }
+  .pill-btn:hover:not(:disabled) { background: var(--surface-2); border-color: var(--mid-grey); }
+  .pill-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .pill-btn svg { width: 13px; height: 13px; }
+
+  /* ---------- Sub bar: breadcrumb + level rail + summary ---------- */
+  .subbar {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    padding: 11px clamp(16px, 3vw, 36px);
+    border-bottom: 1px solid var(--ash-line);
+    background: rgba(27,34,37,0.55);
+  }
+  .breadcrumbs { display: flex; align-items: center; gap: 4px; font-family: "Fragment Mono", monospace; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .breadcrumbs button { background: none; border: none; padding: 4px 3px; color: var(--text-muted); text-transform: uppercase; border-radius: 4px; transition: color 140ms; }
+  .breadcrumbs button:hover:not(:disabled) { color: var(--text); }
+  .breadcrumbs button:disabled { cursor: default; }
+  .breadcrumbs .sep { color: var(--ash-line); }
+  .breadcrumbs [aria-current="page"] { color: var(--neon); }
+
+  .levels { display: flex; align-items: center; gap: 0; }
+  .lvl {
+    font-family: "Fragment Mono", monospace; font-size: 10px; letter-spacing: 0.06em;
+    color: var(--text-muted); border: 1px solid var(--hairline); background: var(--ash);
+    width: 30px; height: 26px; display: grid; place-items: center; border-radius: 7px;
+    transition: all 180ms var(--ease);
+  }
+  .lvl-link { width: 18px; height: 1px; background: var(--ash-line); }
+  .lvl[data-state="active"] { background: var(--neon); color: var(--ash); border-color: var(--neon); font-weight: 600; }
+  .lvl[data-state="done"] { color: var(--text); border-color: var(--mid-grey); }
+
+  .scene-summary { margin-left: auto; color: var(--text-muted); font-size: 13px; max-width: 52ch; text-align: right; }
+  .scene-summary b { color: var(--text); font-weight: 600; }
+
+  /* ---------- Stage / viewport ---------- */
+  .stage { position: relative; min-height: 0; overflow: hidden; }
+  .viewport { position: absolute; inset: 0; overflow: hidden; cursor: grab; }
+  .viewport.is-panning { cursor: grabbing; }
+
+  .scene {
+    position: absolute; top: 0; left: 0; transform-origin: 0 0;
+    will-change: transform;
+  }
+  .scene.animating .canvas { transition: transform var(--zoom-ms) var(--ease), opacity var(--zoom-ms) var(--ease); }
+  .canvas { position: relative; transform-origin: center center; }
+  .canvas.enter-in  { opacity: 0; transform: scale(0.64); }
+  .canvas.exit-in   { opacity: 0; transform: scale(1.55); }
+  .canvas.enter-out { opacity: 0; transform: scale(1.5); }
+  .canvas.exit-out  { opacity: 0; transform: scale(0.66); }
+
+  /* group / boundary boxes */
+  .grp {
+    position: absolute; border: 1px dashed var(--hairline-strong); border-radius: 16px;
+    background: rgba(244,244,236,0.018);
+  }
+  .grp.solid { border-style: solid; border-color: var(--hairline); }
+  .grp-tag {
+    position: absolute; top: -11px; left: 18px;
+    background: var(--ash); padding: 2px 11px; border: 1px solid var(--hairline-strong); border-radius: 999px;
+    font-family: "Fragment Mono", monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .grp.accent-tag .grp-tag { color: var(--ash); background: var(--grp-accent); border-color: var(--grp-accent); }
+
+  /* nodes — compact card; height grows to fit content (never clips) */
+  .node {
+    position: absolute; display: flex; align-items: center; text-align: left;
+    padding: 9px 12px 9px 15px; border-radius: 12px;
+    border: 1px solid var(--hairline); background: var(--ash);
+    color: var(--text);
+    transition: border-color 160ms var(--ease), background 160ms var(--ease), transform 160ms var(--ease), box-shadow 160ms var(--ease);
+  }
+  .node::before {
+    content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 3px;
+    border-radius: 0 3px 3px 0; background: var(--accent, var(--mid-grey));
+  }
+  .node.external { border-style: dashed; background: rgba(244,244,236,0.02); }
+  .node.person::after {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+    border-radius: 12px 12px 0 0; background: var(--accent); opacity: 0.85;
+  }
+  .node-row { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; }
+  .node-ic {
+    flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px;
+    border: 1px solid var(--hairline); color: var(--text); background: var(--surface-2);
+  }
+  .node-ic svg { width: 17px; height: 17px; }
+  @supports (background: color-mix(in srgb, red, blue)) {
+    .node-ic {
+      background: color-mix(in srgb, var(--accent, var(--mid-grey)) 16%, var(--ash));
+      border-color: color-mix(in srgb, var(--accent, var(--mid-grey)) 34%, transparent);
+    }
+  }
+  .node-body { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .node-name {
+    font-family: "Archivo", sans-serif; font-weight: 600; font-size: 12.5px; letter-spacing: -0.015em; line-height: 1.14; color: var(--text);
+    overflow-wrap: break-word; hyphens: none;
+  }
+  .node-meta {
+    font-family: "Fragment Mono", monospace; font-size: 9px; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-muted); line-height: 1.3;
+  }
+  .is-focus .node-name { font-size: 15.5px; }
+
+  .node.zoomable { cursor: zoom-in; }
+  .node.zoomable:hover { border-color: var(--accent); background: rgba(231,255,124,0.06); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.35); }
+  .node.zoomable .zoom-badge {
+    position: absolute; top: 9px; right: 9px; width: 22px; height: 22px; display: grid; place-items: center;
+    border-radius: 6px; border: 1px solid var(--accent); color: var(--accent); background: var(--ash);
+  }
+  .node.zoomable .zoom-badge svg { width: 12px; height: 12px; }
+  .node.is-focus { border-color: var(--neon); box-shadow: 0 0 0 3px rgba(231,255,124,0.14); }
+
+  /* "open in plan" deep-link badge (revealed on hover) */
+  .node.has-doc:not(.zoomable) { cursor: pointer; }
+  .node .doc-badge {
+    position: absolute; top: 9px; right: 9px; width: 22px; height: 22px; display: grid; place-items: center;
+    border-radius: 6px; border: 1px solid var(--hairline-strong); color: var(--text-muted); background: var(--ash);
+    opacity: 0; transition: opacity 140ms var(--ease), color 140ms, border-color 140ms; padding: 0;
+  }
+  .node:hover .doc-badge, .node:focus-within .doc-badge { opacity: 1; }
+  .node .doc-badge:hover { color: var(--neon); border-color: var(--neon); }
+  .node .doc-badge svg { width: 12px; height: 12px; }
+  .node.zoomable .doc-badge { right: 37px; }  /* sit to the left of the zoom badge */
+  @keyframes focusPulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(231,255,124,0.16); }
+    50%      { box-shadow: 0 0 0 8px rgba(231,255,124,0.06); }
+  }
+  .node.zoomable.is-focus { animation: focusPulse 2.4s ease-in-out infinite; }
+  .node.zoomable.is-focus:hover { animation: none; }
+
+  /* hover dimming */
+  .canvas.has-hover .node:not(.hot) { opacity: 0.32; }
+  .canvas.has-hover .grp { opacity: 0.5; }
+  .canvas.has-hover .node.hot { opacity: 1; }
+
+  /* edges */
+  svg.edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
+  .edge-path { fill: none; stroke: var(--edge); stroke-width: 1.6; transition: stroke 160ms, stroke-width 160ms, opacity 160ms; }
+  .edge-path.dashed { stroke-dasharray: 6 5; }
+  .canvas.has-hover .edge-path:not(.hot) { opacity: 0.16; }
+  .edge-path.hot { stroke: var(--neon); stroke-width: 2.4; }
+  .edge-arrow { fill: var(--edge); transition: fill 160ms; }
+  .edge-arrow.hot { fill: var(--neon); }
+
+  .edge-label {
+    position: absolute; transform: translate(-50%, -50%);
+    background: var(--ash); border: 1px solid var(--hairline); border-radius: 6px;
+    padding: 2px 7px; font-size: 9.5px; line-height: 1.2; color: var(--text-muted);
+    max-width: 156px; text-align: center; pointer-events: none; white-space: normal; opacity: 0.72;
+  }
+  .canvas.has-hover .edge-label:not(.hot) { opacity: 0.1; }
+  .edge-label.hot { color: var(--text); border-color: var(--hairline-strong); }
+
+  /* legend */
+  .legend {
+    position: absolute; left: clamp(14px,2.4vw,28px); bottom: 16px; z-index: 5;
+    display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center;
+    padding: 9px 14px; background: rgba(27,34,37,0.86); border: 1px solid var(--ash-line); border-radius: 12px;
+    backdrop-filter: blur(6px); max-width: min(620px, 70vw);
+  }
+  .legend-item { display: inline-flex; align-items: center; gap: 6px; font-family: "Fragment Mono", monospace; font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
+  .legend-sw { width: 11px; height: 11px; border-radius: 3px; }
+
+  .hint {
+    position: absolute; right: clamp(14px,2.4vw,28px); bottom: 18px; z-index: 5;
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 13px; background: rgba(27,34,37,0.86); border: 1px solid var(--ash-line); border-radius: 999px;
+    backdrop-filter: blur(6px); font-family: "Fragment Mono", monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted);
+  }
+  .hint kbd { background: var(--ash); border: 1px solid var(--hairline-strong); border-radius: 4px; padding: 1px 6px; color: var(--text); }
+
+  .zoomctl { position: absolute; right: clamp(14px,2.4vw,28px); top: 16px; z-index: 5; display: flex; flex-direction: column; gap: 6px; }
+  .zoomctl button {
+    width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px;
+    border: 1px solid var(--ash-line); background: rgba(27,34,37,0.86); color: var(--text); backdrop-filter: blur(6px);
+    font-family: "Fragment Mono", monospace; font-size: 15px; transition: all 140ms var(--ease);
+  }
+  .zoomctl button:hover { border-color: var(--mid-grey); background: var(--surface-2); }
+
+  @media (max-width: 760px) {
+    .scene-summary { display: none; }
+    .legend { max-width: 60vw; }
+    .hint { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .scene.animating .canvas { transition: opacity 0.001ms; }
+    .node, .edge-path { transition: none; }
+    .node.zoomable.is-focus { animation: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- TOP BAR -->
+  <header class="topbar">
+    <div class="brand">
+      <span class="ribbon" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span>
+        <span class="brand-eyebrow">SYSTEM NAME</span><br />
+        <span class="brand-title">C4 Architecture</span>
+      </span>
+    </div>
+
+    <div class="tabs" role="tablist" aria-label="C4 view">
+      <button class="tab" role="tab" data-root="context" aria-selected="true">System Context</button>
+      <button class="tab" role="tab" data-root="code" aria-selected="false">Code</button>
+      <button class="tab" role="tab" data-root="deployment" aria-selected="false">Deployment</button>
+    </div>
+
+    <div class="topbar-actions">
+      <button class="pill-btn" id="backBtn" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+        Zoom out
+      </button>
+      <button class="pill-btn" id="resetBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+        Fit
+      </button>
+    </div>
+  </header>
+
+  <!-- SUB BAR -->
+  <div class="subbar">
+    <nav class="breadcrumbs" id="breadcrumbs" aria-label="Diagram path"></nav>
+    <div class="levels" id="levels" aria-hidden="true"></div>
+    <p class="scene-summary" id="summary"></p>
+  </div>
+
+  <!-- STAGE -->
+  <main class="stage">
+    <div class="viewport" id="viewport">
+      <div class="zoomctl">
+        <button id="zinBtn" title="Zoom in" aria-label="Zoom in">+</button>
+        <button id="zoutBtn" title="Zoom out" aria-label="Zoom out">−</button>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="hint"><kbd>Click</kbd> the glowing box to drill in · drag / scroll to pan · pinch or <kbd>+ −</kbd> to zoom · <kbd>Esc</kbd> back</div>
+    </div>
+  </main>
+</div>
+
+<!-- ELK layout engine (orthogonal edge routing + nested compounds). Loaded from
+     CDN like the brand fonts; if unreachable the app falls back to authored
+     coordinates with bezier connectors. -->
+<script src="https://cdn.jsdelivr.net/npm/elkjs@0.9.3/lib/elk.bundled.js"></script>
+<script>
+/* =========================================================================
+   Interactive nested C4 architecture explorer (single file).
+   You author the DIAGRAMS object further down; everything else is the engine.
+   Navigation: strict C4 zoom tree —
+     Context (L1) --click the focus system--> Container (L2)
+                  Container --click the focus container--> Component (L3)
+     Code and Deployment are separate top-level views (tabs).
+   Layout: ELK 'layered' + ORTHOGONAL routing + INCLUDE_CHILDREN compounds,
+   with a bezier + authored-coordinate fallback if ELK can't load.
+   ========================================================================= */
+
+/* ---- icon set (inline, stroke = currentColor) ---- */
+const ICONS = {
+  person: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c0-3.6 3.1-5.6 7-5.6s7 2 7 5.6"/></svg>',
+  agent: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="10" rx="2.4"/><path d="M12 4.5v3.5"/><circle cx="12" cy="3.4" r="1.2"/><circle cx="9.4" cy="13" r="1.1"/><circle cx="14.6" cy="13" r="1.1"/></svg>',
+  box: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="5" width="15" height="14" rx="2.2"/><path d="M4.5 9.5h15"/></svg>',
+  cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.6-7.95A5 5 0 0 1 16 9a3.5 3.5 0 0 1 .5 6.97"/><path d="M7 18h9.5"/></svg>',
+  db: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6"/></svg>',
+  bolt: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13h6l-1 8 8-10h-6z"/></svg>',
+  shield: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3 8-7 10-4-2-7-5.4-7-10V6z"/></svg>',
+  gateway: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16"/><path d="M9 7l-5 5 5 5"/><path d="M15 7l5 5-5 5"/></svg>',
+  graph: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M7 16l3.5-4 3 2.5L20 8"/></svg>',
+  code: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 8l-4 4 4 4"/><path d="M15 8l4 4-4 4"/></svg>',
+  network: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2.2"/><circle cx="5" cy="18" r="2.2"/><circle cx="19" cy="18" r="2.2"/><path d="M12 7.2V13M12 13l-5 3M12 13l5 3"/></svg>',
+  key: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="3.5"/><path d="M10.5 10.5 20 20"/><path d="M16 16l2-2M18.5 18.5 20 17"/></svg>',
+  repo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h11a2 2 0 0 1 2 2v14H8a2 2 0 0 1-2-2z"/><path d="M6 16h13"/><path d="M9 4v9"/></svg>',
+  chat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9l-4 4z"/></svg>',
+  doc: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 16h6"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5 10 17l9-10"/></svg>',
+  zoom: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+  ext: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 5h5v5"/><path d="M19 5l-9 9"/><path d="M19 14v4a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h4"/></svg>',
+};
+
+/* accent palette (brand tokens) keyed by role */
+const A = {
+  person: 'var(--powder)',
+  focus: 'var(--neon)',
+  system: 'var(--teal)',
+  external: 'var(--mid-grey)',
+  data: 'var(--tangerine)',
+  gov: 'var(--indigo)',
+  event: 'var(--dahlia)',
+  eval: 'var(--olive)',
+  infra: 'var(--teal)',
+};
+
+const LEGEND = [
+  ['person', 'Person'],
+  ['focus', 'In focus / zoomable'],
+  ['system', 'Internal system'],
+  ['external', 'External system'],
+  ['data', 'Datastore'],
+  ['gov', 'Governance / identity'],
+  ['event', 'Event / ingress'],
+  ['eval', 'Eval / observability'],
+];
+
+/* =========================================================================
+   DEEP LINKS (optional) — give each box an "open in source" link.
+   Set DOC_URL to the hosted source doc's base URL and fill DOC_MAP with
+   { diagramId: { nodeId: 'heading-anchor-slug' } }. Slug rule: lowercase,
+   collapse runs of non-alphanumerics to '-'. Avoid headings with intra-word
+   apostrophes (their slug is ambiguous). Leave DOC_URL '' to disable links.
+   ========================================================================= */
+const DOC_URL = '';
+const DOC_MAP = {
+  // context:   { system: 'overview-section-slug' },
+  // container: { api: 'api-service-slug', store: 'data-model-slug' },
+};
+function openDoc(slug){ if(!DOC_URL) return; try { window.open(DOC_URL + '#' + slug, '_blank', 'noopener,noreferrer'); } catch(_){} }
+
+/* =========================================================================
+   ▼▼▼  EDIT HERE — THIS IS THE ONLY BLOCK YOU AUTHOR  ▼▼▼
+   Replace the example below with the architecture you extracted from the
+   source docs / diagrams. Keep the five top-level keys (context, container,
+   component, code, deployment) so the tabs, level rail and #hash routing work
+   unchanged. If a level does not apply: provide a minimal diagram for it, OR
+   delete its DIAGRAMS entry AND remove its <button class="tab"> (for code /
+   deployment) AND remove any zoomTo that points at it (for component).
+
+   Per-diagram fields:
+     title, kicker ('C4 · Level 1' …), summary (one line, <b> allowed),
+     w, h        rough virtual-canvas size (px). ELK re-lays-out; w/h only
+                 seed the fit + offline fallback.
+     dir         ELK flow direction: 'RIGHT' (default) | 'DOWN' | 'LEFT' | 'UP'.
+     parent      (container/component) the diagram you drilled from.
+     groups[]    boundaries: { id, tag, x, y, w, h, accent?, solid? }
+     nodes[]     { id, name, tech, kind, icon, role, x, y, w, h, zoomTo? }
+     edges[]     { from, to, label?, dashed?, undirected? }
+
+   role  → accent + meaning: person | focus | system | external | data |
+           gov | event | eval | infra        (focus = the in-spotlight,
+           drillable box; give it zoomTo:'<child diagram id>')
+   icon  → person agent box cloud db bolt shield gateway graph code network
+           key repo chat doc clock check
+
+   COORDINATES MATTER FOR ONE THING ONLY: a node belongs to the smallest group
+   whose rectangle contains the node's CENTRE — that inferred containment is
+   what ELK lays out as a nested boundary. So place a node's centre inside its
+   boundary's rectangle. Exact positions are otherwise irrelevant (ELK redoes
+   them); keep them roughly sane for the offline fallback.
+
+   Strict C4 zoom tree: exactly one node in 'context' has zoomTo:'container'
+   (the focus system) and one node in 'container' has zoomTo:'component'
+   (the focus container). Code and Deployment are reached via the top tabs.
+   ========================================================================= */
+const DIAGRAMS = {
+
+  context: {
+    title:'System Context', kicker:'C4 · Level 1',
+    summary:'Who and what <b>The System</b> talks to.',
+    w:1200, h:680, dir:'RIGHT', groups:[],
+    nodes:[
+      { id:'user',  name:'End user',       tech:'Uses the product',        kind:'Person',          icon:'person', role:'person',   x:40,  y:120, w:160, h:84 },
+      { id:'admin', name:'Administrator',  tech:'Configures the system',   kind:'Person',          icon:'person', role:'person',   x:40,  y:260, w:160, h:84 },
+      { id:'system',name:'The System',     tech:'What this diagram is about',kind:'Software system',icon:'box',   role:'focus',    x:460, y:170, w:300, h:160, zoomTo:'container' },
+      { id:'idp',   name:'Identity provider',tech:'SSO',                   kind:'External system', icon:'shield', role:'external', x:980, y:120, w:180, h:84 },
+      { id:'sink',  name:'Analytics warehouse',tech:'BigQuery',            kind:'External system', icon:'db',     role:'external', x:980, y:280, w:180, h:84 },
+    ],
+    edges:[
+      { from:'user',   to:'system', label:'Uses' },
+      { from:'admin',  to:'system', label:'Administers' },
+      { from:'system', to:'idp',    label:'Authenticates via' },
+      { from:'system', to:'sink',   label:'Sends events' },
+    ],
+  },
+
+  container: {
+    title:'Container', kicker:'C4 · Level 2', summary:'Inside <b>The System</b>.',
+    parent:'context', w:1240, h:760, dir:'RIGHT',
+    groups:[ { id:'gSys', tag:'The System', x:300, y:60, w:560, h:560, accent:'var(--neon)' } ],
+    nodes:[
+      { id:'spa',    name:'Web app',           tech:'React SPA',  kind:'Container', icon:'box',     role:'system',   x:40,  y:300, w:180, h:84 },
+      { id:'api',    name:'API service',       tech:'Cloud Run',  kind:'Container', icon:'box',     role:'focus',    x:360, y:120, w:200, h:96, zoomTo:'component' },
+      { id:'worker', name:'Background worker',  tech:'Cloud Run',  kind:'Container', icon:'bolt',    role:'event',    x:360, y:320, w:200, h:84 },
+      { id:'store',  name:'Primary database',  tech:'Postgres',   kind:'Datastore', icon:'db',      role:'data',     x:620, y:120, w:200, h:84 },
+      { id:'queue',  name:'Task queue',        tech:'Pub/Sub',    kind:'Datastore', icon:'bolt',    role:'event',    x:620, y:320, w:200, h:84 },
+      { id:'cidp',   name:'Identity provider', tech:'',           kind:'External',  icon:'shield',  role:'external', x:980, y:200, w:180, h:80 },
+    ],
+    edges:[
+      { from:'spa',   to:'api',   label:'JSON / HTTPS' },
+      { from:'api',   to:'store', label:'reads / writes' },
+      { from:'api',   to:'queue', label:'enqueues' },
+      { from:'queue', to:'worker',label:'triggers' },
+      { from:'worker',to:'store', label:'writes' },
+      { from:'api',   to:'cidp',  label:'verifies token' },
+    ],
+  },
+
+  component: {
+    title:'Component', kicker:'C4 · Level 3', summary:'Inside the <b>API service</b>.',
+    parent:'container', w:1120, h:660, dir:'RIGHT',
+    groups:[ { id:'gApi', tag:'API service', x:40, y:60, w:760, h:520, accent:'var(--neon)' } ],
+    nodes:[
+      { id:'router', name:'HTTP router',     tech:'middleware',     kind:'Component', icon:'gateway', role:'system', x:80,  y:260, w:180, h:80 },
+      { id:'authc',  name:'Auth component',  tech:'JWT verify',     kind:'Component', icon:'shield',  role:'gov',    x:320, y:120, w:180, h:80 },
+      { id:'svc',    name:'Domain service',  tech:'business logic', kind:'Component', icon:'box',     role:'system', x:320, y:280, w:180, h:80 },
+      { id:'repo',   name:'Repository',      tech:'data access',    kind:'Component', icon:'db',      role:'data',   x:320, y:440, w:180, h:80 },
+      { id:'cstore', name:'Primary database',tech:'Postgres',       kind:'Datastore', icon:'db',      role:'data',   x:900, y:380, w:180, h:80 },
+    ],
+    edges:[
+      { from:'router', to:'authc', label:'validates' },
+      { from:'router', to:'svc',   label:'dispatches' },
+      { from:'svc',    to:'repo',  label:'uses' },
+      { from:'repo',   to:'cstore',label:'SQL' },
+    ],
+  },
+
+  code: {
+    title:'Code', kicker:'C4 · Level 4', summary:'Repositories & packages that build it.',
+    w:1000, h:560, dir:'RIGHT',
+    groups:[ { id:'gMono', tag:'monorepo', x:40, y:60, w:520, h:420, accent:'var(--teal)', solid:true } ],
+    nodes:[
+      { id:'web',    name:'web',    tech:'package',   kind:'Package',    icon:'code',  role:'system', x:80,  y:140, w:170, h:72 },
+      { id:'apiPkg', name:'api',    tech:'package',   kind:'Package',    icon:'code',  role:'system', x:80,  y:300, w:170, h:72 },
+      { id:'shared', name:'shared', tech:'package',   kind:'Package',    icon:'code',  role:'system', x:340, y:220, w:170, h:72 },
+      { id:'infra',  name:'infra',  tech:'Terraform', kind:'Repository', icon:'cloud', role:'infra',  x:660, y:220, w:200, h:72 },
+    ],
+    edges:[
+      { from:'web',    to:'shared' },
+      { from:'apiPkg', to:'shared' },
+      { from:'apiPkg', to:'infra', label:'deploys via', dashed:true },
+    ],
+  },
+
+  deployment: {
+    title:'Deployment', kicker:'C4 · Deployment', summary:'Runtime & infrastructure topology.',
+    w:1100, h:620, dir:'RIGHT',
+    groups:[ { id:'gCloud', tag:'Cloud project', x:40, y:60, w:620, h:500, solid:true } ],
+    nodes:[
+      { id:'lb',    name:'Load balancer', tech:'',         kind:'Infra',     icon:'network', role:'gov',      x:80,  y:260, w:180, h:76 },
+      { id:'run',   name:'API service',   tech:'Cloud Run',kind:'Service',   icon:'box',     role:'focus',    x:320, y:140, w:200, h:80 },
+      { id:'depdb', name:'Database',      tech:'Cloud SQL',kind:'Datastore', icon:'db',      role:'data',     x:320, y:320, w:200, h:76 },
+      { id:'cdn',   name:'CDN',           tech:'',         kind:'External',  icon:'cloud',   role:'external', x:760, y:260, w:180, h:76 },
+    ],
+    edges:[
+      { from:'cdn', to:'lb',    label:'origin' },
+      { from:'lb',  to:'run',   label:'routes' },
+      { from:'run', to:'depdb', label:'connects' },
+      { from:'run', to:'lb',    undirected:true },
+    ],
+  },
+
+};
+
+
+Object.keys(DIAGRAMS).forEach(k=>{ DIAGRAMS[k].id = k; }); // stamp id for DOC_MAP lookup
+
+const ROOTS = { context:'context', code:'code', deployment:'deployment' };
+const SYSTEM_TREE = ['context','container','component'];
+
+/* =========================================================================
+   STATE
+   ========================================================================= */
+const state = {
+  root: 'context',
+  stack: ['context'],     // breadcrumb path of diagram ids
+  animating: false,
+};
+
+const el = {
+  viewport: document.getElementById('viewport'),
+  breadcrumbs: document.getElementById('breadcrumbs'),
+  levels: document.getElementById('levels'),
+  summary: document.getElementById('summary'),
+  legend: document.getElementById('legend'),
+  backBtn: document.getElementById('backBtn'),
+  resetBtn: document.getElementById('resetBtn'),
+  tabs: Array.from(document.querySelectorAll('.tab')),
+  zinBtn: document.getElementById('zinBtn'),
+  zoutBtn: document.getElementById('zoutBtn'),
+};
+
+let activeScene = null;        // {dom, canvas, dgm, fit:{s,tx,ty}}
+const ZOOM_MS = (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--zoom-ms'),10)||560)+120;
+
+/* =========================================================================
+   LAYOUT ENGINE — ELK (orthogonal routing, nested compounds) + fallback
+   ========================================================================= */
+const elk = (typeof ELK !== 'undefined') ? new ELK() : null;
+const NS  = 'http://www.w3.org/2000/svg';
+
+/* Dev-only layout self-check. Enable by adding ?debug (or #debug) to the URL.
+   After each layout it verifies every edge's drawn endpoints actually land on
+   their source/target box, so a routing/coordinate regression is caught in the
+   console instead of by eye. */
+const DEBUG = /(\?|&|#)debug\b/.test(location.href);
+function auditEdges(scene){
+  const { canvas, dgm } = scene;
+  const box={};
+  canvas.querySelectorAll('.node').forEach(n=>{ box[n.dataset.node]={ x:parseFloat(n.style.left)||0, y:parseFloat(n.style.top)||0, w:n.offsetWidth, h:n.offsetHeight }; });
+  const TOL=10, near=(px,py,b)=> b && px>=b.x-TOL && px<=b.x+b.w+TOL && py>=b.y-TOL && py<=b.y+b.h+TOL;
+  const bad=[]; const paths=canvas.querySelectorAll('.edge-path');
+  paths.forEach(p=>{
+    const nums=(p.getAttribute('d')||'').match(/-?[\d.]+/g); if(!nums||nums.length<4) return;
+    const sx=+nums[0], sy=+nums[1], ex=+nums[nums.length-2], ey=+nums[nums.length-1];
+    const f=p.dataset.from, t=p.dataset.to;
+    const sOk=near(sx,sy,box[f]), eOk=near(ex,ey,box[t]);
+    if(!sOk||!eOk) bad.push(`${f}→${t} [${sOk?'':'start '}${eOk?'':'end '}off-box]`);
+  });
+  if(bad.length) console.warn(`[C4 audit] ${dgm.title}: ${bad.length}/${paths.length} edge(s) detached:`, bad);
+  else console.info(`[C4 audit] ${dgm.title}: all ${paths.length} edges attached ✓`);
+}
+
+/* ---- bezier helpers (fallback routing only) ---- */
+function edgeGeom(a, b){
+  const dx = b.cx - a.cx, dy = b.cy - a.cy;
+  let p1, p2, c1, c2;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    const s = dx >= 0 ? 1 : -1;
+    p1 = { x: a.cx + s*a.w/2, y: a.cy };
+    p2 = { x: b.cx - s*b.w/2, y: b.cy };
+    const off = Math.max(38, Math.abs(p2.x-p1.x)*0.42);
+    c1 = { x: p1.x + s*off, y: p1.y };
+    c2 = { x: p2.x - s*off, y: p2.y };
+  } else {
+    const s = dy >= 0 ? 1 : -1;
+    p1 = { x: a.cx, y: a.cy + s*a.h/2 };
+    p2 = { x: b.cx, y: b.cy - s*b.h/2 };
+    const off = Math.max(34, Math.abs(p2.y-p1.y)*0.42);
+    c1 = { x: p1.x, y: p1.y + s*off };
+    c2 = { x: p2.x, y: p2.y - s*off };
+  }
+  return { p1, p2, c1, c2 };
+}
+function bez(p1,c1,c2,p2,t){
+  const m=1-t;
+  return {
+    x: m*m*m*p1.x + 3*m*m*t*c1.x + 3*m*t*t*c2.x + t*t*t*p2.x,
+    y: m*m*m*p1.y + 3*m*m*t*c1.y + 3*m*t*t*c2.y + t*t*t*p2.y,
+  };
+}
+
+/* ---- orthogonal path with rounded corners (ELK routing) ---- */
+function orthoPath(pts, r){
+  if(pts.length<2) return '';
+  let d=`M${pts[0].x},${pts[0].y}`;
+  for(let i=1;i<pts.length-1;i++){
+    const p0=pts[i-1], p1=pts[i], p2=pts[i+1];
+    const v1x=p1.x-p0.x, v1y=p1.y-p0.y, v2x=p2.x-p1.x, v2y=p2.y-p1.y;
+    const l1=Math.hypot(v1x,v1y)||1, l2=Math.hypot(v2x,v2y)||1;
+    const rr=Math.min(r, l1/2, l2/2);
+    d+=` L${p1.x - v1x/l1*rr},${p1.y - v1y/l1*rr} Q${p1.x},${p1.y} ${p1.x + v2x/l2*rr},${p1.y + v2y/l2*rr}`;
+  }
+  const last=pts[pts.length-1];
+  d+=` L${last.x},${last.y}`;
+  return d;
+}
+function arrowTri(p, prev){
+  const ang=Math.atan2(p.y-prev.y, p.x-prev.x), sz=8.5;
+  const l=`${p.x - sz*Math.cos(ang) + sz*0.55*Math.sin(ang)},${p.y - sz*Math.sin(ang) - sz*0.55*Math.cos(ang)}`;
+  const r=`${p.x - sz*Math.cos(ang) - sz*0.55*Math.sin(ang)},${p.y - sz*Math.sin(ang) + sz*0.55*Math.cos(ang)}`;
+  return `${p.x},${p.y} ${l} ${r}`;
+}
+/* point at 50% of a polyline's length — used to anchor edge labels on the route */
+function polyMidpoint(pts){
+  if(pts.length<2) return pts[0]||{x:0,y:0};
+  let total=0; const segs=[];
+  for(let i=1;i<pts.length;i++){ const L=Math.hypot(pts[i].x-pts[i-1].x, pts[i].y-pts[i-1].y); segs.push(L); total+=L; }
+  let half=total/2;
+  for(let i=1;i<pts.length;i++){ const L=segs[i-1]; if(half<=L){ const t=L?half/L:0; return { x:pts[i-1].x+(pts[i].x-pts[i-1].x)*t, y:pts[i-1].y+(pts[i].y-pts[i-1].y)*t }; } half-=L; }
+  return pts[pts.length-1];
+}
+
+/* ---- DOM builders ---- */
+function buildGroupEl(g){
+  const d = document.createElement('div');
+  d.className = 'grp' + (g.solid ? ' solid' : '') + (g.accent ? ' accent-tag' : '');
+  if (g.accent) d.style.setProperty('--grp-accent', g.accent);
+  const tag = document.createElement('span'); tag.className='grp-tag'; tag.textContent=g.tag;
+  d.appendChild(tag);
+  return d;
+}
+function buildNodeEl(n, dgm, canvas){
+  const node = document.createElement(n.zoomTo ? 'button' : 'div');
+  node.className = 'node ' + (n.role||'system') + (n.role==='external'?' external':'') + (n.role==='person'?' person':'') + (n.role==='focus'?' is-focus':'') + (n.zoomTo?' zoomable':'');
+  node.style.width = n.w + 'px'; node.style.minHeight = n.h + 'px';
+  node.style.setProperty('--accent', A[n.role]||A.system);
+  node.dataset.node = n.id;
+
+  const row=document.createElement('div'); row.className='node-row';
+  const ic=document.createElement('span'); ic.className='node-ic'; ic.innerHTML=ICONS[n.icon]||ICONS.box;
+  const body=document.createElement('div'); body.className='node-body';
+  const name=document.createElement('span'); name.className='node-name'; name.textContent=n.name;
+  const meta=document.createElement('span'); meta.className='node-meta';
+  meta.textContent = (n.kind||'') + (n.tech ? ' · ' + n.tech : '');
+  body.appendChild(name); if(meta.textContent) body.appendChild(meta);
+  row.appendChild(ic); row.appendChild(body);
+  node.appendChild(row);
+
+  if(n.zoomTo){
+    const zb=document.createElement('span'); zb.className='zoom-badge'; zb.innerHTML=ICONS.zoom; node.appendChild(zb);
+    node.setAttribute('aria-label','Zoom into '+n.name);
+    node.addEventListener('click',(ev)=>{ ev.stopPropagation(); if(!dragMoved) drillInto(n.zoomTo); });
+  }
+
+  // deep-link to the matching section of the hosted plan
+  const docSlug = (DOC_MAP[dgm.id]||{})[n.id];
+  if(docSlug){
+    node.classList.add('has-doc');
+    const db=document.createElement('span'); db.className='doc-badge'; db.innerHTML=ICONS.ext;
+    db.setAttribute('role','button'); db.setAttribute('tabindex','0');
+    db.setAttribute('aria-label','Open “'+n.name+'” in the plan');
+    db.title='Open in the plan ↗';
+    db.addEventListener('click',(ev)=>{ ev.stopPropagation(); if(!dragMoved) openDoc(docSlug); });
+    db.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); ev.stopPropagation(); openDoc(docSlug); } });
+    node.appendChild(db);
+    // for non-drillable boxes the whole card opens the plan
+    if(!n.zoomTo) node.addEventListener('click',()=>{ if(!dragMoved) openDoc(docSlug); });
+  }
+
+  node.addEventListener('mouseenter',()=>highlightNode(canvas, dgm, n.id, true));
+  node.addEventListener('mouseleave',()=>highlightNode(canvas, dgm, n.id, false));
+  return node;
+}
+function buildLabelEl(text){
+  const lab=document.createElement('div'); lab.className='edge-label'; lab.textContent=text;
+  return lab;
+}
+
+/* ---- build a scene: group + node + label DOM (positions assigned later) ---- */
+function buildScene(dgm){
+  const scene = document.createElement('div'); scene.className='scene';
+  const canvas = document.createElement('div'); canvas.className='canvas';
+  scene.appendChild(canvas);
+
+  const groupEls={}, nodeEls={}, labelEls={};
+  (dgm.groups||[]).forEach(g=>{ const e=buildGroupEl(g); groupEls[g.id]=e; canvas.appendChild(e); });
+  dgm.nodes.forEach(n=>{ const e=buildNodeEl(n,dgm,canvas); nodeEls[n.id]=e; canvas.appendChild(e); });
+  dgm.edges.forEach((e,i)=>{ if(e.label){ const le=buildLabelEl(e.label); labelEls[i]=le; canvas.appendChild(le); } });
+
+  return { dom:scene, canvas, dgm, fit:null, cw:dgm.w, ch:dgm.h, groupEls, nodeEls, labelEls };
+}
+
+/* ---- hierarchy inferred from the authored rectangles ---- */
+function inferHierarchy(dgm){
+  const groups = dgm.groups||[];
+  const area = g=>g.w*g.h;
+  const contains = (o,i)=> o!==i && o.x<=i.x && o.y<=i.y && o.x+o.w>=i.x+i.w && o.y+o.h>=i.y+i.h;
+  const inside   = (o,cx,cy)=> o.x<=cx && cx<=o.x+o.w && o.y<=cy && cy<=o.y+o.h;
+  const parentGroup={}, nodeParent={};
+  groups.forEach(g=>{ let best=null; groups.forEach(o=>{ if(contains(o,g) && (!best||area(o)<area(best))) best=o; }); parentGroup[g.id]=best?best.id:null; });
+  dgm.nodes.forEach(n=>{ const cx=n.x+n.w/2, cy=n.y+n.h/2; let best=null; groups.forEach(o=>{ if(inside(o,cx,cy) && (!best||area(o)<area(best))) best=o; }); nodeParent[n.id]=best?best.id:null; });
+  return { parentGroup, nodeParent };
+}
+
+/* ---- run ELK over a measured scene; returns laid-out graph ---- */
+async function runElk(scene){
+  const { dgm, nodeEls, labelEls } = scene;
+  const { parentGroup, nodeParent } = inferHierarchy(dgm);
+
+  const groupNode={};
+  (dgm.groups||[]).forEach(g=>{ groupNode[g.id]={ id:g.id, children:[], layoutOptions:{ 'elk.padding':'[top=30.0,left=18.0,bottom=18.0,right=18.0]' } }; });
+  const leaf={};
+  dgm.nodes.forEach(n=>{ const e=nodeEls[n.id]; leaf[n.id]={ id:n.id, width:e.offsetWidth, height:e.offsetHeight }; });
+
+  const rootChildren=[];
+  (dgm.groups||[]).forEach(g=>{ const p=parentGroup[g.id]; (p?groupNode[p].children:rootChildren).push(groupNode[g.id]); });
+  dgm.nodes.forEach(n=>{ const p=nodeParent[n.id]; (p?groupNode[p].children:rootChildren).push(leaf[n.id]); });
+
+  const edges = dgm.edges.map((e,i)=>{
+    const edge={ id:'e'+i, sources:[e.from], targets:[e.to] };
+    if(e.label && labelEls[i]) edge.labels=[{ id:'l'+i, width:labelEls[i].offsetWidth, height:labelEls[i].offsetHeight }];
+    return edge;
+  });
+
+  const graph={
+    id:'root',
+    layoutOptions:{
+      'elk.algorithm':'layered',
+      'elk.direction': dgm.dir || 'RIGHT',
+      'elk.edgeRouting':'ORTHOGONAL',
+      'elk.hierarchyHandling':'INCLUDE_CHILDREN',
+      'elk.layered.spacing.nodeNodeBetweenLayers':'64',
+      'elk.layered.spacing.edgeNodeBetweenLayers':'26',
+      'elk.spacing.nodeNode':'30',
+      'elk.spacing.edgeNode':'18',
+      'elk.spacing.edgeEdge':'12',
+      'elk.spacing.edgeLabel':'4',
+      'elk.layered.considerModelOrder.strategy':'NODES_AND_EDGES',
+      'elk.padding':'[top=18,left=18,bottom=18,right=18]'
+    },
+    children: rootChildren,
+    edges
+  };
+  return await elk.layout(graph);
+}
+
+/* ---- apply the ELK result to the DOM ---- */
+function positionFromElk(scene, layout){
+  const { canvas, dgm, groupEls, nodeEls, labelEls } = scene;
+  // Node coordinates are parent-relative → accumulate to absolute. Edge
+  // coordinates are reported in the frame of the endpoints' lowest common
+  // ancestor (root for cross-group edges, the compound for internal ones),
+  // so each edge must be offset by that ancestor's absolute origin.
+  const abs={}; const parentOf={}; const edgeList=[];
+  (function walk(node, ox, oy){
+    const ax=ox+(node.x||0), ay=oy+(node.y||0);
+    if(node.id!=='root') abs[node.id]={ x:ax, y:ay, w:node.width, h:node.height };
+    (node.children||[]).forEach(c=>{ parentOf[c.id]=node.id; walk(c, ax, ay); });
+    (node.edges||[]).forEach(edge=>edgeList.push(edge));
+  })(layout, 0, 0);
+
+  const chainOf = (id)=>{ const c=[]; let x=id; while(x && x!=='root'){ c.push(x); x=parentOf[x]; } c.push('root'); return c; };
+  function lcaOrigin(a, b){
+    const cb=new Set(chainOf(b));
+    for(const g of chainOf(a)){ if(cb.has(g)) return (g==='root'||!abs[g]) ? {x:0,y:0} : {x:abs[g].x, y:abs[g].y}; }
+    return {x:0,y:0};
+  }
+
+  (dgm.groups||[]).forEach(g=>{ const a=abs[g.id], e=groupEls[g.id]; if(a&&e){ e.style.left=a.x+'px'; e.style.top=a.y+'px'; e.style.width=a.w+'px'; e.style.height=a.h+'px'; } });
+  dgm.nodes.forEach(n=>{ const a=abs[n.id], e=nodeEls[n.id]; if(a&&e){ e.style.left=a.x+'px'; e.style.top=a.y+'px'; } });
+
+  const cw=layout.width, ch=layout.height;
+  scene.cw=cw; scene.ch=ch;
+  canvas.style.width=cw+'px'; canvas.style.height=ch+'px';
+
+  const svg=document.createElementNS(NS,'svg'); svg.setAttribute('class','edges');
+  svg.setAttribute('width',cw); svg.setAttribute('height',ch);
+  edgeList.forEach((edge)=>{
+    const i=parseInt(edge.id.slice(1),10); const e=dgm.edges[i]; if(!e) return;
+    const sec=(edge.sections||[])[0]; if(!sec) return;
+    const o=lcaOrigin(e.from, e.to);
+    const pts=[sec.startPoint, ...(sec.bendPoints||[]), sec.endPoint].map(p=>({ x:p.x+o.x, y:p.y+o.y }));
+    const path=document.createElementNS(NS,'path');
+    path.setAttribute('d', orthoPath(pts, 9));
+    path.setAttribute('class','edge-path'+(e.dashed?' dashed':''));
+    path.dataset.edge=i; path.dataset.from=e.from; path.dataset.to=e.to;
+    svg.appendChild(path);
+    if(!e.undirected){
+      const tri=document.createElementNS(NS,'polygon');
+      tri.setAttribute('points', arrowTri(pts[pts.length-1], pts[pts.length-2]));
+      tri.setAttribute('class','edge-arrow'); tri.dataset.edge=i;
+      svg.appendChild(tri);
+    }
+    const le=labelEls[i];
+    if(le){ const mp=polyMidpoint(pts); le.dataset.edge=i; le.dataset.from=e.from; le.dataset.to=e.to; le.style.left=mp.x+'px'; le.style.top=mp.y+'px'; }
+  });
+
+  const firstNode=canvas.querySelector('.node');
+  canvas.insertBefore(svg, firstNode);
+  Object.values(labelEls).forEach(le=>canvas.insertBefore(le, firstNode));
+}
+
+/* ---- fallback: authored coordinates + bezier routing ---- */
+function positionManual(scene){
+  const { canvas, dgm, groupEls, nodeEls, labelEls } = scene;
+  scene.cw=dgm.w; scene.ch=dgm.h;
+  canvas.style.width=dgm.w+'px'; canvas.style.height=dgm.h+'px';
+  (dgm.groups||[]).forEach(g=>{ const e=groupEls[g.id]; e.style.left=g.x+'px'; e.style.top=g.y+'px'; e.style.width=g.w+'px'; e.style.height=g.h+'px'; });
+  dgm.nodes.forEach(n=>{ const e=nodeEls[n.id]; e.style.left=n.x+'px'; e.style.top=n.y+'px'; });
+
+  const rectOfEl=(el)=>({ x:el.offsetLeft, y:el.offsetTop, w:el.offsetWidth, h:el.offsetHeight, cx:el.offsetLeft+el.offsetWidth/2, cy:el.offsetTop+el.offsetHeight/2 });
+  const svg=document.createElementNS(NS,'svg'); svg.setAttribute('class','edges');
+  svg.setAttribute('width',dgm.w); svg.setAttribute('height',dgm.h);
+  dgm.edges.forEach((e,i)=>{
+    const ea=nodeEls[e.from], eb=nodeEls[e.to]; if(!ea||!eb) return;
+    const g=edgeGeom(rectOfEl(ea), rectOfEl(eb));
+    const path=document.createElementNS(NS,'path');
+    path.setAttribute('d', `M${g.p1.x},${g.p1.y} C${g.c1.x},${g.c1.y} ${g.c2.x},${g.c2.y} ${g.p2.x},${g.p2.y}`);
+    path.setAttribute('class','edge-path'+(e.dashed?' dashed':''));
+    path.dataset.edge=i; path.dataset.from=e.from; path.dataset.to=e.to;
+    svg.appendChild(path);
+    if(!e.undirected){
+      const tri=document.createElementNS(NS,'polygon');
+      tri.setAttribute('points', arrowTri(g.p2, bez(g.p1,g.c1,g.c2,g.p2,0.9)));
+      tri.setAttribute('class','edge-arrow'); tri.dataset.edge=i; svg.appendChild(tri);
+    }
+    if(e.label && labelEls[i]){ const m=bez(g.p1,g.c1,g.c2,g.p2,0.5); const le=labelEls[i]; le.dataset.edge=i; le.dataset.from=e.from; le.dataset.to=e.to; le.style.left=m.x+'px'; le.style.top=m.y+'px'; }
+  });
+  const firstNode=canvas.querySelector('.node');
+  canvas.insertBefore(svg, firstNode);
+  Object.values(labelEls).forEach(le=>canvas.insertBefore(le, firstNode));
+}
+
+function highlightNode(canvas, dgm, id, on){
+  if(!on){ canvas.classList.remove('has-hover'); canvas.querySelectorAll('.hot').forEach(x=>x.classList.remove('hot')); return; }
+  canvas.classList.add('has-hover');
+  canvas.querySelector(`.node[data-node="${id}"]`)?.classList.add('hot');
+  dgm.edges.forEach((e,i)=>{
+    if(e.from===id||e.to===id){
+      const other = e.from===id?e.to:e.from;
+      canvas.querySelector(`.node[data-node="${other}"]`)?.classList.add('hot');
+      canvas.querySelectorAll(`[data-edge="${i}"]`).forEach(x=>x.classList.add('hot'));
+    }
+  });
+}
+
+/* =========================================================================
+   FIT / PAN / ZOOM
+   ========================================================================= */
+function computeFit(cw, ch){
+  const vw = el.viewport.clientWidth, vh = el.viewport.clientHeight;
+  // reserve room so the bottom legend/hint overlays never cover diagram content
+  const padX = 44, padTop = 22, padBottom = 88;
+  const availW = vw - padX*2, availH = vh - padTop - padBottom;
+  const s = Math.min(availW/cw, availH/ch);
+  const tx = (vw - cw*s)/2;
+  const ty = padTop + (availH - ch*s)/2;
+  return { s, tx, ty };
+}
+function applyFit(scene){
+  const f=scene.fit;
+  scene.dom.style.transform = `translate(${f.tx}px,${f.ty}px) scale(${f.s})`;
+}
+
+/* =========================================================================
+   NAVIGATION
+   ========================================================================= */
+function currentId(){ return state.stack[state.stack.length-1]; }
+
+/* ---- URL hash routing: #<leaf-diagram-id> ---- */
+let hashSynced = false;
+// Reconstruct {root, stack} from a hash; null if it names no diagram.
+function parseHash(){
+  const id = decodeURIComponent((location.hash||'').replace(/^#/, ''));
+  if(!DIAGRAMS[id]) return null;
+  const i = SYSTEM_TREE.indexOf(id);
+  if(i>=0) return { root:'context', stack: SYSTEM_TREE.slice(0, i+1) };  // L1/L2/L3 restore the stack
+  return { root:id, stack:[id] };                                       // code / deployment
+}
+// Reflect the current view in the URL. First write replaces (no history entry);
+// later navigations push, so browser back/forward traverse the views.
+function syncHash(){
+  const target = '#' + currentId();
+  if(location.hash === target) return;
+  if(!hashSynced){ history.replaceState(null, '', target); hashSynced = true; }
+  else { location.hash = target; }
+}
+
+/* Layout depends on measured card sizes, so the web fonts MUST be loaded
+   before we measure — otherwise cards are sized with fallback-font metrics
+   (different line wrapping), ELK reserves the wrong space, and the real fonts
+   then reflow the text into overlapping boxes. Memoised: resolves instantly
+   after the first call. */
+let _fontsReady = null;
+function ensureFonts(){
+  if(_fontsReady) return _fontsReady;
+  if(!document.fonts){ _fontsReady = Promise.resolve(); return _fontsReady; }
+  const faces = ['600 13px Archivo','600 15px Archivo','400 13px "Plus Jakarta Sans"','400 9px "Fragment Mono"'];
+  _fontsReady = Promise.all(faces.map(f=>document.fonts.load(f).catch(()=>{})))
+    .then(()=>document.fonts.ready).catch(()=>{});
+  return _fontsReady;
+}
+
+async function showDiagram(id, direction){
+  state.animating = true; setBusy(true);   // block re-entry through the async gap
+  await ensureFonts();                      // measure with final fonts, never fallback metrics
+  const dgm = DIAGRAMS[id];
+  const incoming = buildScene(dgm);
+  incoming.dom.style.visibility = 'hidden';
+  el.viewport.appendChild(incoming.dom);    // in the DOM so boxes/labels can be measured
+
+  let laid = false;
+  if(elk){
+    try { positionFromElk(incoming, await runElk(incoming)); laid = true; }
+    catch(err){ console.warn('ELK layout failed — falling back to authored coordinates', err); }
+  }
+  if(!laid) positionManual(incoming);
+
+  incoming.fit = computeFit(incoming.cw, incoming.ch);
+  applyFit(incoming);
+  incoming.dom.style.visibility = '';
+  if(DEBUG) auditEdges(incoming);
+
+  const outgoing = activeScene;
+  activeScene = incoming;
+
+  if(outgoing && direction){
+    incoming.canvas.classList.add(direction==='in'?'enter-in':'enter-out');
+    incoming.dom.classList.add('animating');
+    outgoing.dom.classList.add('animating');
+    void incoming.canvas.offsetWidth; // force reflow
+    requestAnimationFrame(()=>{
+      incoming.canvas.classList.remove('enter-in','enter-out');
+      outgoing.canvas.classList.add(direction==='in'?'exit-in':'exit-out');
+    });
+    setTimeout(()=>{
+      outgoing.dom.remove();
+      incoming.dom.classList.remove('animating');
+      state.animating=false; setBusy(false); syncChrome();
+    }, ZOOM_MS);
+  } else {
+    if(outgoing) outgoing.dom.remove();
+    state.animating=false; setBusy(false); syncChrome();
+  }
+}
+
+function drillInto(childId){
+  if(state.animating) return;
+  state.stack.push(childId);
+  showDiagram(childId, 'in');
+}
+function zoomOut(){
+  if(state.animating || state.stack.length<=1) return;
+  state.stack.pop();
+  showDiagram(currentId(), 'out');
+}
+function jumpTo(index){
+  if(state.animating || index>=state.stack.length-1) return;
+  const dir = 'out';
+  state.stack = state.stack.slice(0, index+1);
+  showDiagram(currentId(), dir);
+}
+function switchRoot(root){
+  if(state.animating || root===state.root) return;
+  state.root=root;
+  state.stack=[ROOTS[root]];
+  showDiagram(currentId(), null);
+}
+
+function setBusy(b){
+  el.backBtn.disabled = b || state.stack.length<=1;
+  el.tabs.forEach(t=>t.disabled=b);
+}
+
+/* =========================================================================
+   CHROME (breadcrumbs, levels, summary, tabs, legend)
+   ========================================================================= */
+function syncChrome(){
+  const dgm = DIAGRAMS[currentId()];
+
+  // breadcrumbs
+  el.breadcrumbs.innerHTML='';
+  state.stack.forEach((id,i)=>{
+    if(i>0){ const s=document.createElement('span'); s.className='sep'; s.textContent='›'; el.breadcrumbs.appendChild(s); }
+    const b=document.createElement('button');
+    b.textContent=DIAGRAMS[id].title;
+    if(i===state.stack.length-1){ b.setAttribute('aria-current','page'); b.disabled=true; }
+    else b.addEventListener('click',()=>jumpTo(i));
+    el.breadcrumbs.appendChild(b);
+  });
+
+  // level rail (only meaningful for the system tree)
+  el.levels.innerHTML='';
+  if(state.root==='context'){
+    SYSTEM_TREE.forEach((id,i)=>{
+      if(i>0){ const l=document.createElement('span'); l.className='lvl-link'; el.levels.appendChild(l); }
+      const depth = state.stack.indexOf(id);
+      const curDepth = state.stack.length-1;
+      const t=document.createElement('span'); t.className='lvl';
+      t.textContent='L'+(i+1);
+      if(depth===curDepth && depth!==-1) t.dataset.state='active';
+      else if(depth!==-1 && depth<curDepth) t.dataset.state='done';
+      el.levels.appendChild(t);
+    });
+    el.levels.style.display='flex';
+  } else {
+    el.levels.style.display='none';
+  }
+
+  el.summary.innerHTML = `<b>${dgm.kicker}</b> &nbsp; ${dgm.summary}`;
+
+  el.tabs.forEach(t=>t.setAttribute('aria-selected', t.dataset.root===state.root ? 'true':'false'));
+  el.backBtn.disabled = state.stack.length<=1;
+  syncHash();
+}
+
+function renderLegend(){
+  el.legend.innerHTML='';
+  LEGEND.forEach(([role,label])=>{
+    const item=document.createElement('span'); item.className='legend-item';
+    const sw=document.createElement('span'); sw.className='legend-sw'; sw.style.background=A[role];
+    item.appendChild(sw); item.appendChild(document.createTextNode(label));
+    el.legend.appendChild(item);
+  });
+}
+
+/* =========================================================================
+   PAN + WHEEL ZOOM (on the active scene's fit transform)
+   ========================================================================= */
+// Panning only begins once the pointer actually moves past a threshold; we do
+// NOT capture the pointer on press, so a plain click still reaches the node.
+let dragging=false, dragMoved=false, captured=false, dragStart=null;
+const MIN_S=0.2, MAX_S=3.2;
+el.viewport.addEventListener('pointerdown',(e)=>{
+  if(state.animating || !activeScene || e.button!==0) return;
+  dragging=true; dragMoved=false; captured=false;
+  dragStart={ x:e.clientX, y:e.clientY, tx:activeScene.fit.tx, ty:activeScene.fit.ty, id:e.pointerId };
+});
+el.viewport.addEventListener('pointermove',(e)=>{
+  if(!dragging||!activeScene) return;
+  const dx=e.clientX-dragStart.x, dy=e.clientY-dragStart.y;
+  if(!dragMoved && Math.hypot(dx,dy)>5){
+    dragMoved=true;
+    el.viewport.classList.add('is-panning');
+    try{ el.viewport.setPointerCapture(dragStart.id); captured=true; }catch(_){}
+  }
+  if(dragMoved){
+    activeScene.fit.tx=dragStart.tx+dx;
+    activeScene.fit.ty=dragStart.ty+dy;
+    applyFit(activeScene);
+  }
+});
+function endDrag(e){
+  if(!dragging) return;
+  dragging=false;
+  el.viewport.classList.remove('is-panning');
+  if(captured){ try{el.viewport.releasePointerCapture(dragStart.id);}catch(_){} captured=false; }
+  // keep dragMoved truthy through the click event that immediately follows a
+  // drag-release (so it is suppressed), then clear it on the next tick.
+  setTimeout(()=>{ dragMoved=false; }, 0);
+}
+el.viewport.addEventListener('pointerup',endDrag);
+el.viewport.addEventListener('pointercancel',endDrag);
+
+function zoomAt(factor, mx, my){
+  if(!activeScene) return;
+  const f=activeScene.fit;
+  const ns=Math.max(MIN_S, Math.min(MAX_S, f.s*factor));
+  f.tx = mx - (mx-f.tx)*(ns/f.s);
+  f.ty = my - (my-f.ty)*(ns/f.s);
+  f.s=ns; applyFit(activeScene);
+}
+
+// Wheel: plain scroll = pan (trackpad-friendly); pinch / ctrl / ⌘ + scroll = zoom.
+el.viewport.addEventListener('wheel',(e)=>{
+  if(!activeScene||state.animating) return;
+  e.preventDefault();
+  const rect=el.viewport.getBoundingClientRect();
+  if(e.ctrlKey || e.metaKey){
+    let factor=Math.exp(-e.deltaY*0.01);
+    factor=Math.max(0.6, Math.min(1.6, factor)); // clamp per event → never jumpy
+    zoomAt(factor, e.clientX-rect.left, e.clientY-rect.top);
+  } else {
+    activeScene.fit.tx -= e.deltaX;
+    activeScene.fit.ty -= e.deltaY;
+    applyFit(activeScene);
+  }
+},{passive:false});
+
+function zoomBy(factor){
+  if(!activeScene) return;
+  const f=activeScene.fit;
+  const rect=el.viewport.getBoundingClientRect();
+  const mx=rect.width/2, my=rect.height/2;
+  const ns=Math.max(MIN_S, Math.min(MAX_S, f.s*factor));
+  f.tx = mx - (mx-f.tx)*(ns/f.s);
+  f.ty = my - (my-f.ty)*(ns/f.s);
+  f.s=ns; applyFit(activeScene);
+}
+
+/* =========================================================================
+   WIRING
+   ========================================================================= */
+el.tabs.forEach(t=>t.addEventListener('click',()=>switchRoot(t.dataset.root)));
+el.backBtn.addEventListener('click',zoomOut);
+el.resetBtn.addEventListener('click',()=>{ if(activeScene){ activeScene.fit=computeFit(activeScene.cw, activeScene.ch); applyFit(activeScene);} });
+el.zinBtn.addEventListener('click',()=>zoomBy(1.18));
+el.zoutBtn.addEventListener('click',()=>zoomBy(1/1.18));
+
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Escape') zoomOut();
+});
+window.addEventListener('resize',()=>{ if(activeScene){ activeScene.fit=computeFit(activeScene.cw, activeScene.ch); applyFit(activeScene);} });
+
+// Browser back/forward (or a hand-edited hash) → jump to that view. The
+// equality guard means our own syncHash writes don't re-trigger navigation.
+window.addEventListener('hashchange',()=>{
+  const t = parseHash();
+  if(!t || state.animating) return;
+  if(t.stack[t.stack.length-1] === currentId()) return;
+  state.root = t.root; state.stack = t.stack;
+  showDiagram(currentId(), null);
+});
+
+renderLegend();
+const _init = parseHash();           // open directly at the hashed view if present
+if(_init){ state.root = _init.root; state.stack = _init.stack; }
+showDiagram(currentId(), null);
+</script>
+</body>
+</html>
