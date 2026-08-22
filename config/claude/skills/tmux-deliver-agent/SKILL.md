@@ -15,6 +15,28 @@ Your prompt contains the unit id, title, worktree path, branch, round number, st
 directory, delivery-summary path, and the exact `report` commands. Use those
 commands verbatim — a chat message is not a report.
 
+## Your prompt may arrive as a pointer
+
+If what was pasted into your window is a short message naming a file under
+`.tmux-deliver/prompts/`, **that file is your prompt** — read it in full before
+anything else. Prompts are passed by reference because a large paste into a
+terminal loses characters silently.
+
+## Prove you got the whole prompt
+
+Your prompt's final line is `TMUX-DELIVER-RECEIPT: <token>`. Quote that token
+verbatim in your **first** report:
+
+```bash
+... report --unit <u> --role implementer --status running --receipt <token> --message "Started..."
+```
+
+If that line is not there, what you have is truncated — and the missing part is
+the end, where the acceptance criteria and the "do NOT touch" list live. Re-read
+the prompt file; if it is still missing, report `blocked` with message
+"prompt truncated" and **do not start work**. Guessing at a half-brief is worse
+than stopping. If `report` rejects your token, stop for the same reason.
+
 ## Required first steps, in order
 
 1. `pwd` — it MUST equal the worktree path in your prompt. If it does not, report
@@ -23,7 +45,7 @@ commands verbatim — a chat message is not a report.
 2. `git status --short` and `git branch --show-current` — the branch MUST match your
    prompt. If not, report `blocked`.
 3. Read every context file listed in your prompt, then the assignment in full.
-4. Report `running` with the command given to you.
+4. Report `running` with the command given to you, including `--receipt`.
 
 ## Strict TDD — non-negotiable
 
@@ -53,6 +75,13 @@ instead.
 - The brief's **"do NOT touch"** list is absolute. If delivering your unit appears
   to require touching something on it, report `blocked` and explain — do not decide
   for yourself that the plan was wrong.
+- **Scope can be widened, and when it is, it is widened in the brief.** Re-read
+  the brief file before each round. A section headed `## SCOPE AMENDMENT — round
+  N, <timestamp>` is an authorisation from the orchestrator and overrides the
+  original scope and "do NOT touch" lists where they disagree. If the orchestrator
+  authorises extra files in a message but they are not in the brief, ask for the
+  brief to be amended — the reviewers read the brief, not your messages, and they
+  will block your delivery for changing files they can only see as out of scope.
 - Honour every **resolved decision** the brief records, exactly, even if you would
   have chosen differently. Say so in your summary if you disagree; implement it
   as specified regardless.
@@ -112,7 +141,7 @@ prompt.
 
 | When | Status |
 |---|---|
-| after reading the brief and planning | `running` |
+| after reading the brief and planning | `running` (with `--receipt`) |
 | the moment you need orchestrator input, or an assumption proves false | `blocked` |
 | you cannot proceed and have no useful next action | `failed` |
 | summary written and verification handled | `done` |
