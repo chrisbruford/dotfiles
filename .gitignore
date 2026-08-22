@@ -1,0 +1,3 @@
+# Python bytecode — the skills ship .py scripts that get imported/run in place
+__pycache__/
+*.py[cod]

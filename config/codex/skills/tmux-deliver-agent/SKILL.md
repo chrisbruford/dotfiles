@@ -21,13 +21,35 @@ Your prompt contains the unit id, title, worktree path, branch, round number, st
 directory, output-file path, and the exact `tmux_deliver.py report` commands. Use
 those commands **verbatim** — a chat message is not a report.
 
+## Your prompt may arrive as a pointer
+
+If what was pasted into your window is a short message naming a file under
+`.tmux-deliver/prompts/`, **that file is your prompt** — read it in full before
+anything else. Prompts are passed by reference because a large paste into a
+terminal loses characters silently.
+
+## Prove you got the whole prompt
+
+Your prompt's final line is `TMUX-DELIVER-RECEIPT: <token>`. Quote that token
+verbatim in your **first** report:
+
+```bash
+... report --unit <u> --role <r> --status running --receipt <token> --message "Started..."
+```
+
+If that line is not there, what you have is truncated — and the missing part is
+the end, where the acceptance criteria and the "do NOT touch" list live. Re-read
+the prompt file; if it is still missing, report `blocked` with message
+"prompt truncated" and **do not start work**. Guessing at a half-brief is worse
+than stopping. If `report` rejects your token, stop for the same reason.
+
 ## Universal first steps
 
 1. `pwd` — it MUST equal the WORKSPACE path in your prompt. If it does not, report
    `blocked` immediately and stop. Do not `cd`, do not read, do not edit: a wrong
    cwd means the launch contract failed and the orchestrator must fix it.
 2. Read every file your prompt points you at before doing anything else.
-3. Report `running` using the command given to you.
+3. Report `running` using the command given to you, with `--receipt`.
 
 Report `blocked` the moment you need orchestrator input, and `failed` if you cannot
 proceed and have no useful next action. Report `blocked` **early** — it costs the
@@ -76,6 +98,13 @@ the exact diff plus passing output of the relevant lint/validator commands inste
 - Change **only** the files listed in your brief's scope section.
 - The brief's **"do NOT touch"** list is absolute. If your unit seems to require
   touching something on it, report `blocked` — do not decide the plan was wrong.
+- **Scope can be widened, and when it is, it is widened in the brief.** Re-read
+  the brief file before each round. A section headed `## SCOPE AMENDMENT — round
+  N, <timestamp>` is an authorisation from the orchestrator and it overrides the
+  original scope and "do NOT touch" lists where they disagree. It binds from its
+  timestamp and is not retroactive. If the orchestrator authorises something in a
+  message but it is *not* in the brief, ask for it to be put there — the
+  reviewers read the brief, not your messages, and they will block you for it.
 - Honour every **resolved decision** the brief records, exactly. Note disagreement
   in your summary; implement as specified regardless.
 - Never touch another unit's worktree. Never run destructive git commands
@@ -224,7 +253,11 @@ against the pre-change code? justify your answer>
 
 ## Scope check
 <did the change stay inside the brief's file list and respect the "do NOT touch"
-list? name anything that escaped>
+list? name anything that escaped. Re-read the brief first: a section headed
+`## SCOPE AMENDMENT — round N, <timestamp>` is an authorised widening from the
+orchestrator, and files it names are IN scope. Judge each round against the brief
+as it stood when that round started — an amendment does not apply retroactively to
+an earlier round, and a rule added after a delivery is not a finding against it>
 
 ## Verification run
 - <command> → <result, with the relevant output>

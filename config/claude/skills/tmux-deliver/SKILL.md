@@ -107,9 +107,35 @@ python3 ~/.claude/skills/tmux-deliver/scripts/tmux_deliver.py watch --state-dir 
 ```
 
 Every line it emits is a unit/role state change. Trust it as the source of truth
-for progress. **Do not babysit panes** — agents submit their own prompts and
-resolve their own permission prompts. Only `tmux capture-pane -p -t <pane>` if an
-agent fails to reach `running` after several minutes, or reports `blocked`.
+for progress — but understand what it cannot tell you. The watcher reports what
+agents report, and an agent that never received its prompt reports nothing at
+all: the unit sits at `launched`, which the *launcher* wrote, and the watcher
+stays silent because nothing changed.
+
+That gap is now covered from the other side: the watcher also samples the panes
+and emits `ALERT` when a role recorded as working has a pane that has been idle,
+with no busy indicator, past `--idle-threshold` (default 120s), and `ACTION` when
+a unit has roles nothing has been dispatched to. **Act on those lines.** They
+exist because a status table that agrees with itself is not evidence.
+
+If you are attached to a different session from the run's, mirror the windows so
+the user can see them — see §7.
+
+**Verifying a launch is not babysitting.** `start-agent` now does it for you: it
+waits for the CLI's composer before pasting, checks the prompt landed before
+pressing Enter, confirms the submission, and then blocks until the agent
+self-reports `running`. If any of that fails it exits **non-zero** with the pane
+tail attached. So:
+
+- **Read `start-agent`'s exit code and output.** `agent_status=running` and
+  `receipt_check=verified` mean the agent has the whole brief. Anything else
+  means it does not — do not proceed to review a unit whose implementer was never
+  confirmed to have started.
+- `... await-running --unit <u> --role <r> --timeout 300` if you passed
+  `--no-wait-running` or the launch wait timed out on a genuinely slow boot.
+- Beyond that, do not babysit panes — agents submit their own prompts and resolve
+  their own permission prompts. `tmux capture-pane -p -t <pane>` when a launch
+  fails, an agent reports `blocked`, or a role is still `launched`.
 
 ## 3. Strict TDD — mandatory for every code-bearing unit
 
@@ -153,8 +179,15 @@ For each unit, in dependency order, respecting the concurrency cap:
        --context-file docs/payments-retry-plan.md
    ```
 
-   Wait for the watcher to report `implementer=done` (unit status `delivered`),
-   then read `.tmux-deliver/deliveries/<unit>-r<N>.md`.
+   This returns only once the agent has confirmed it is running, so it can take
+   a minute or two. Check the tail of its output before moving on:
+   `pane_ready=ready`, `paste_check=ok`, `submitted=working`,
+   `agent_status=running`, `receipt_check=verified`. A non-zero exit means the
+   agent never got its prompt — fix that first; do not wait for a delivery that
+   is not coming.
+
+   Then wait for the watcher to report `implementer=done` (unit status
+   `delivered`), and read `.tmux-deliver/deliveries/<unit>-r<N>.md`.
 
 3. **Review (parallel).** Launch both reviewers **in one shell command** so they
    run concurrently, each in its own window on Sol/xhigh:
@@ -186,21 +219,67 @@ For each unit, in dependency order, respecting the concurrency cap:
 
 6. **Decide.**
    - **Acceptable** → go to §5.
-   - **Not acceptable** → bump the round, then send the implementer **one**
-     consolidated list of required changes:
+   - **Not acceptable** → write **one** consolidated list of required changes,
+     then bump the round and dispatch it in a single command:
 
      ```bash
-     ... next-round --unit retry-policy --message "round 1 rejected: 2 blocking findings"
-     ... send --unit retry-policy --role implementer --file .tmux-deliver/messages/feedback.md
+     ... next-round --unit retry-policy --feedback-file .tmux-deliver/messages/retry-policy-r2-feedback.md \
+         --message "round 1 rejected: 2 blocking findings"
      ```
+
+     `--feedback-file` is not optional in practice. It sends the change request
+     to the implementer **and** shows both reviewers what was asked for, in one
+     step, because the step that keeps getting skipped is the one that is
+     separate. Without it the round still bumps, but every finished role is left
+     `stale` — visibly un-tasked — and the command says so loudly.
 
      Keep the same windows alive so the implementer and both reviewers retain
      context. Be explicit and imperative — "apply these exact changes now" — and
      verify the working tree yourself rather than trusting the reply.
 
-7. **Re-review.** When the implementer reports done again, `send` the delta to
-   the **same** reviewer windows (they remember round N-1 and can judge whether
-   their findings were actually addressed), then return to step 4.
+7. **Re-review.** When the implementer reports done again, dispatch the delta to
+   **both** reviewer windows — the same ones, which remember round N-1 and can
+   judge whether their findings were actually addressed:
+
+   ```bash
+   ... re-review --unit retry-policy --file .tmux-deliver/messages/retry-policy-r2-delta.md
+   ```
+
+   Until you do, both reviewers stay `stale` and `status` keeps saying so. With no
+   `--file` it sends a generated re-review request pointing at the round's
+   delivery summary, brief and diff. Then return to step 4.
+
+**Each role gets the document its contract expects — they are not the same
+document.** The implementer gets a change list ("apply these exact changes now,
+commit, report done"). The reviewers get a re-review prompt ("here is the delta;
+go through your previous findings and say whether each was addressed"). Sending
+the implementer's change list to a reviewer asks it to do the one thing its
+contract forbids, and a good reviewer refuses — which costs you a round-trip and
+looks like a stall. `send` and `re-review` refuse implementer-shaped text aimed at
+a reviewer and point you at `re-review` (`--anyway` overrides).
+
+Having been burned by a forgotten dispatch, the tempting rule is "always send to
+all three". That is wrong in a new way. The rule is: **every role that is owed
+something gets something, and each gets the right thing.** `next-round
+--feedback-file` and `re-review` encode exactly that.
+
+**Mid-round scope changes go in the brief, never only in a message.** If an
+implementer reports `blocked` and you authorise files outside its original scope,
+`send`ing that authorisation to the implementer alone is invisible to the
+reviewers — who will then block the delivery for going outside scope, correctly,
+given what they can see. The brief is the only artefact all three roles share:
+
+```bash
+... extend-scope --unit retry-policy --message "Also authorised: src/payments/ledger.py, read-only wiring for the retry counter. Reason: the policy cannot be observed without it."
+```
+
+That appends a `## SCOPE AMENDMENT — round N, <timestamp>` section to the unit's
+brief and tells all three roles to re-read it. Amendments are **not retroactive**:
+they carry the timestamp and round they were made in, and a delivery is judged
+against the brief as it stood when that round started. The same applies to any
+shared decisions document you keep — if you change a rule mid-run, date the
+change and say plainly that it binds from that point on, or a reviewer will judge
+an already-finished delivery against a rule that postdates it.
 
 **Escalation:** `next-round` refuses past **3 rejected rounds** and marks the unit
 `escalated`. When that happens, stop work on the unit and bring the user the
@@ -232,6 +311,34 @@ integration conflicts — that is your job.
 
 Give the user a one-line status update after each acceptance: unit, verdict,
 rounds taken.
+
+## 5b. Make the windows visible to the user
+
+If the run has its own session (`--session`) the agent windows land somewhere the
+user is not attached to, so **they see nothing** unless you do something about it.
+Set the mirror at `init`:
+
+```bash
+... init --session tmux-deliver-payments --mirror-session auto   # 'auto' = your own session
+... init --session tmux-deliver-payments --mirror-session my-work
+```
+
+Every window `start-agent` creates is then linked into that session automatically
+and `start-agent` prints `mirror=linked into <session>:<idx>`. Linking is not
+copying — it is the same window in two sessions, so the run is not disturbed.
+
+For a run already in flight, or to change or drop the mirror:
+
+```bash
+... mirror --session my-work      # link every live agent window, and record it
+... mirror --unlink               # remove the mirrored view; the run keeps its windows
+```
+
+**Tell the user about the sharp edge before it happens:** `accept` closes a unit's
+three windows, and because they are the same windows, they vanish from the
+mirrored session too. Their view thins out as units are accepted. `accept` says so
+in its output; say it to the user as well, so a shrinking window list reads as
+progress rather than as something breaking.
 
 ## 6. Finish
 
@@ -271,13 +378,46 @@ rather than guessing.
   relay the message and let the user accept the dialog once by hand, or switch to
   `--codex` (which needs no acceptance and writes nothing).
 - **Never send stray keystrokes** to a pane. Use `send`, which pastes via a tmux
-  buffer and submits after a settle delay. Broadcasting Enter can re-trigger a
-  finished agent into duplicate work.
+  buffer, verifies the paste landed, submits, and confirms the CLI took it.
+  Broadcasting Enter can re-trigger a finished agent into duplicate work.
+- **Prompts go in by reference, not by value.** Pasting a whole prompt into a TUI
+  is how runs break: a real launch arrived 1,520 characters short, truncating the
+  brief exactly where its acceptance criteria were. So `start-agent` and `send`
+  type **one line** telling the agent to read the file in
+  `.tmux-deliver/prompts/` (or `messages/`). One line has no newlines to be read
+  as Enter and no paste heuristic to misfire. `--prompt-mode inline` pastes the
+  text instead — now with bracketed paste (`paste-buffer -p`), which is reliable,
+  and verified before Enter either way.
+- **If a pane's composer is mangled, restart it.** `C-u` and `C-c` will not clear
+  one. `tmux respawn-pane -k -t <pane> '<launch cmd>'` keeps the pane id, so unit
+  state stays valid. `start-agent` does this for you between delivery attempts;
+  never do it to a reviewer or implementer window you want to keep, because it
+  discards the context that makes re-review meaningful.
+- **`launched` is a launcher-written status, not an agent's word.** Only
+  `running` comes from the agent. Treat a unit still at `launched` as a failed
+  launch and go look at the pane. The same holds for `notified` (you sent it
+  something; it has not acknowledged) and `stale` (you have sent it nothing since
+  the round bumped — it is idle and it is waiting on *you*).
+- **The recorded status is bookkeeping; the pane is the fact.** `status` samples
+  both and prints a `LIVENESS` block — alive/dead, busy/idle, time since the pane
+  last changed — and shouts where the two disagree. Read it. Two consecutive
+  rounds were lost to a table that said `running` about reviewers nobody had
+  tasked. `--no-liveness` turns sampling off; it then says so rather than
+  implying it checked.
+- **`DEAD` means the pane is gone** (usually a tmux server restart, which takes
+  every agent window at once); `no-window` means none was ever recorded. Both
+  need `start-agent --relaunch` — neither is a slow agent.
+- **Never read the composer line as evidence.** Both CLIs render rotating
+  placeholder hints there ("Explain this codebase", "Improve documentation in
+  @filename"), so a pane can look alive with nothing running. The busy indicator
+  and changes in output above the composer are the honest signals, and they are
+  what the liveness check uses.
 - **Reviewer windows are per-unit and long-lived** by design — killing them
   between rounds throws away the context that makes re-review worth anything.
 - After an interruption, run `recover` before doing anything else: it reports
-  which panes are still alive and which died. Treat `delivered` and `reviewed` as
-  *awaiting your judgement*, never as accepted.
+  which panes are still alive and which died, counting a dead pane as a
+  contradiction. Treat `delivered` and `reviewed` as *awaiting your judgement*,
+  never as accepted.
 
 Begin by parsing the invocation (§0) and establishing the plan (§1): read it, post
 the work-unit list in delivery order with dependencies, the manual action items,
