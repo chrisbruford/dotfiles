@@ -84,6 +84,8 @@ python3 ~/.claude/skills/tmux-super-orchestrator/scripts/tmux_orchestrate.py sta
 
 The helper creates a tmux window with the workspace as the initial cwd, starts `claude` there, pastes a worker prompt that invokes `$tmux-sub-orchestrator`, and records the task state. If not using the helper, perform the same operation directly with tmux: start the worker window in the chosen project directory or git worktree.
 
+Workers launch with `--permission-mode bypassPermissions`. Nobody is watching a worker pane, so a worker that hits an interactive approval prompt stalls until the supervisor hand-drives keystrokes into it; the worktree isolation is what contains the blast radius. Pass `--permission-mode <mode>` to `start-worker` to dial that back for a specific worker.
+
 Use `prepare-worktree` before starting a worker when you need a new isolated git worktree:
 
 ```bash

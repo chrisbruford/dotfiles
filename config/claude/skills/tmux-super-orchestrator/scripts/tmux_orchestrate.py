@@ -18,6 +18,8 @@ from typing import Any
 
 
 CLAUDE_COMMAND = "claude --model default"
+PERMISSION_MODES = ["acceptEdits", "auto", "bypassPermissions", "manual", "dontAsk", "plan"]
+DEFAULT_WORKER_PERMISSION_MODE = "bypassPermissions"
 VALID_STATUSES = {
     "queued",
     "launched",
@@ -144,6 +146,17 @@ def send_text_to_tmux(target: str, text: str, state_dir: Path, label: str) -> Pa
 
 def send_command(target: str, command: str) -> None:
     run_tmux(["send-keys", "-t", target, command, "C-m"])
+
+
+def worker_command(permission_mode: str) -> str:
+    """Build the shell command that starts a worker's Claude session.
+
+    Workers run unattended in isolated git worktrees, so they launch with
+    permission checks bypassed: nobody is watching the pane, and a worker that
+    stops on an interactive approval prompt stalls until the supervisor hand-
+    drives keystrokes into it. Override with --permission-mode to dial it back.
+    """
+    return f"{CLAUDE_COMMAND} --permission-mode {shlex.quote(permission_mode)}"
 
 
 def build_bootstrap_prompt(state_dir: Path, root: Path) -> str:
@@ -343,11 +356,14 @@ def command_start_worker(args: argparse.Namespace) -> None:
     )
     prompt_path = state_dir / "prompts" / f"{task_id}.md"
 
+    launch = worker_command(args.permission_mode)
+
     if args.dry_run:
         prompt_path.write_text(prompt)
         print(f"dry_run=true")
         print(f"task_id={task_id}")
         print(f"prompt_file={prompt_path}")
+        print(f"launch_command={launch}")
         return
 
     limit = int(meta.get("concurrency") or 3)
@@ -384,13 +400,14 @@ def command_start_worker(args: argparse.Namespace) -> None:
     write_json(task_file, task)
     append_event(state_dir, {"type": "worker-launched", "task_id": task_id, "window": window_id, "pane": pane_id})
 
-    send_command(pane_id, CLAUDE_COMMAND)
+    send_command(pane_id, launch)
     time.sleep(args.startup_wait)
     send_text_to_tmux(pane_id, prompt, state_dir, f"prompt-{task_id}")
     print(f"task_id={task_id}")
     print(f"window={window_id}")
     print(f"pane={pane_id}")
     print(f"prompt_file={prompt_path}")
+    print(f"launch_command={launch}")
 
 
 def command_report(args: argparse.Namespace) -> None:
@@ -662,6 +679,16 @@ def build_parser() -> argparse.ArgumentParser:
     start_worker.add_argument("--assignment")
     start_worker.add_argument("--context-file", action="append", default=[])
     start_worker.add_argument("--use-deliver", choices=["auto", "always", "never"], default="auto")
+    start_worker.add_argument(
+        "--permission-mode",
+        choices=PERMISSION_MODES,
+        default=DEFAULT_WORKER_PERMISSION_MODE,
+        help=(
+            "Permission mode for the worker's Claude session "
+            f"(default: {DEFAULT_WORKER_PERMISSION_MODE}, so an unattended worker never "
+            "blocks on an approval prompt)."
+        ),
+    )
     start_worker.add_argument("--startup-wait", type=float, default=3.0)
     start_worker.add_argument("--reuse", action="store_true")
     start_worker.add_argument("--ignore-concurrency", action="store_true")
