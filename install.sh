@@ -1,5 +1,5 @@
 #!/bin/bash
-# Dotfiles installer for Coder engineer workspaces.
+# Dotfiles installer for Coder engineer workspaces (Linux) and local macOS machines.
 # Runs on every workspace start and on manual refresh — must be idempotent.
 set -euo pipefail
 
@@ -7,16 +7,24 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # --- Git identity ---
 git config --global user.name  "Chris Bruford"
-git config --global user.email "chris.bruford@liberis.com"
+git config --global user.email "chrisbruford@gmail.com"
 git config --global core.editor "vim"
 git config --global pull.rebase false
 git config --global init.defaultBranch main
 git config --global push.autoSetupRemote true
 
 # --- Zsh + oh-my-zsh + powerlevel10k ---
-# Set zsh as the login shell (idempotent)
-sudo usermod -s /usr/bin/zsh engineer
 "$DOTFILES_DIR/scripts/setup-zsh.sh"
+
+# Set zsh as the login shell (idempotent)
+ZSH_BIN="$(command -v zsh)"
+if [[ "$SHELL" != "$ZSH_BIN" ]]; then
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    sudo chsh -s "$ZSH_BIN" "$(whoami)"
+  else
+    sudo usermod -s "$ZSH_BIN" "$(whoami)"
+  fi
+fi
 
 # --- Place zsh config (overwrite on each run so updates land automatically) ---
 cp "$DOTFILES_DIR/config/.zshrc"        "$HOME/.zshrc"
@@ -34,11 +42,18 @@ fi
 
 # --- Bash fallback aliases (used if zsh setup fails) ---
 if ! grep -q '# dotfiles: shell aliases' ~/.bashrc 2>/dev/null; then
-  cat >> ~/.bashrc << 'EOF'
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    LS_FLAGS_LONG="-lahG"
+    LS_FLAGS_ALL="-AG"
+  else
+    LS_FLAGS_LONG="-lah --color=auto"
+    LS_FLAGS_ALL="-A --color=auto"
+  fi
+  cat >> ~/.bashrc << EOF
 
 # dotfiles: shell aliases
-alias ll='ls -lah --color=auto'
-alias la='ls -A --color=auto'
+alias ll='ls $LS_FLAGS_LONG'
+alias la='ls $LS_FLAGS_ALL'
 alias gs='git status --short'
 alias gd='git diff'
 alias gp='git push'

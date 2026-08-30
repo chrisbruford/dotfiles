@@ -18,8 +18,13 @@ export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.npm-global/bin:$PATH"
 
 # Aliases
-alias ll='ls -lah --color=auto'
-alias la='ls -A --color=auto'
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  alias ll='ls -lahG'
+  alias la='ls -AG'
+else
+  alias ll='ls -lah --color=auto'
+  alias la='ls -A --color=auto'
+fi
 alias gs='git status --short'
 alias gd='git diff'
 alias gp='git push'

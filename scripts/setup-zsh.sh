@@ -3,14 +3,27 @@
 # Idempotent: safe to run on every workspace boot.
 set -euo pipefail
 
+install_pkg() {
+  local pkg="$1"
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    if ! command -v brew &>/dev/null; then
+      echo "setup-zsh: homebrew not found, cannot install $pkg. Install it from https://brew.sh and re-run." >&2
+      exit 1
+    fi
+    brew install "$pkg"
+  else
+    sudo apt-get update -qq && sudo apt-get install -y -qq "$pkg"
+  fi
+}
+
 if ! command -v zsh &>/dev/null; then
   echo "setup-zsh: installing zsh..."
-  sudo apt-get update -qq && sudo apt-get install -y -qq zsh
+  install_pkg zsh
 fi
 
 if ! command -v tmux &>/dev/null; then
   echo "setup-zsh: installing tmux..."
-  sudo apt-get update -qq && sudo apt-get install -y -qq tmux
+  install_pkg tmux
 fi
 
 if [[ ! -d "$HOME/.oh-my-zsh" ]]; then
