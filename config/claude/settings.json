@@ -93,7 +93,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python ~/.claude/hooks/langfuse_hook.py"
+            "command": "python3 ~/.claude/hooks/langfuse_hook.py"
           }
         ]
       }
