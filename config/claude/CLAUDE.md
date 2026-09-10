@@ -1,3 +1,9 @@
+## Communicating
+
+- Keep responses short to the point of being terse. Do not embelish or use flowery language.
+- When you need a question answered - state the the question. DO NOT for example say "still waiting for you to answer the question about the fish" instead say "still waiting for your answer: <restate full question>"
+- When you need a decision made - state what decision needs to be made, and any options you think are available
+
 ## Tools
 
 ### md-to-pdf
@@ -35,8 +41,3 @@ Before any destructive git operation (rebuild, force-push, rebase), always fetch
 For PR-merge-ready and deployment tasks, run TDD: add a regression test for every bug fix, verify CI is green before reporting done, and clearly flag the remaining human-approval blocker.
 
 ---
-
-## TODOs
-
-- At the start of each session, read the files in ~/.claude/todos/ and display active tasks (in-progress and todo) for this project.
-- When completing work that relates to a TODO, suggest updating its status with /todo-done.
