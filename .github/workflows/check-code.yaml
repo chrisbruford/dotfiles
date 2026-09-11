@@ -1,0 +1,55 @@
+name: Check Code
+
+# Gates the dotfiles-managed Claude Code configuration. The suite is stdlib-only
+# and offline, so it needs no dependency install step.
+#
+# It exists because a Stop hook shipped here invoking `python` — an interpreter
+# that is not on PATH on the Coder workspace image (python3 only) — and nothing
+# caught it until it errored on every turn in a live workspace.
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: check-code-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Config tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # Matches the Coder workspace image (Ubuntu 24.04 ships Python 3.12), so
+      # a syntax or stdlib difference cannot pass here and fail in a workspace.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run tests
+        run: python3 -m unittest discover -s tests -v
+
+  json-valid:
+    name: JSON parses
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      # A malformed settings.json does not fail the installer loudly — the merge
+      # aborts and the workspace silently keeps its previous config.
+      - name: Validate JSON config files
+        run: |
+          for f in config/claude/settings.json config/claude/plugins.json; do
+            python3 -m json.tool "$f" > /dev/null && echo "ok: $f"
+          done

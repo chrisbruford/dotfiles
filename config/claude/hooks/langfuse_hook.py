@@ -1,7 +1,18 @@
 #!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.10"
+# dependencies = [
+#   "langfuse>=4.7,<5",
+# ]
+# ///
 """
 Claude Code -> Langfuse hook
 
+Run via `uv run --script` where uv is available: the inline metadata above lets
+uv provision the SDK on demand, which is the only reason this works on a plain
+workstation where nothing has pip-installed langfuse into the interpreter. The
+settings.json Stop hook falls back to `python3` when uv is missing, in which
+case the SDK import below fails open and the hook simply does nothing.
 """
 
 import json
@@ -14,6 +25,46 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+CLAUDE_DIR = Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
+
+# --- Stand down when the langfuse-observability plugin owns the Stop hook ---
+# These dotfiles get installed on personal workstations, which have no plugin,
+# and on Coder engineer workspaces, whose image installs langfuse-observability
+# and registers its own Stop hook over the same transcript. Both hooks fire, so
+# without this the workspace sessions get traced twice. Deliberately checked
+# before importing the SDK: on the workspace path that keeps the hook down to a
+# couple of file reads per turn instead of a uv dependency resolution.
+PLUGIN_NAME = "langfuse-observability"
+
+
+def _read_json(path: Path) -> Dict[str, Any]:
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def langfuse_plugin_active(claude_dir: Path) -> bool:
+    installed = _read_json(claude_dir / "plugins" / "installed_plugins.json")
+    # Keys are "<plugin>@<marketplace>"; match on the plugin half so a rename of
+    # the marketplace it is served from does not silently re-enable double
+    # tracing.
+    keys = [
+        k for k in (installed.get("plugins") or {}) if k.split("@")[0] == PLUGIN_NAME
+    ]
+    if not keys:
+        return False
+
+    enabled = _read_json(claude_dir / "settings.json").get("enabledPlugins") or {}
+    # Installed but explicitly disabled (entrypoint.sh does this in task
+    # workspaces) means its hook never fires, so ours is not a duplicate.
+    return any(enabled.get(k, True) is not False for k in keys)
+
+
+if langfuse_plugin_active(CLAUDE_DIR):
+    sys.exit(0)
+
 # --- Langfuse import (fail-open) ---
 try:
     from langfuse import Langfuse, propagate_attributes
@@ -21,7 +72,7 @@ except Exception:
     sys.exit(0)
 
 # --- Paths ---
-STATE_DIR = Path.home() / ".claude" / "state"
+STATE_DIR = CLAUDE_DIR / "state"
 LOG_FILE = STATE_DIR / "langfuse_hook.log"
 STATE_FILE = STATE_DIR / "langfuse_state.json"
 LOCK_FILE = STATE_DIR / "langfuse_state.lock"

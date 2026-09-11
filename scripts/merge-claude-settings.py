@@ -19,6 +19,17 @@ OVERWRITE_KEYS = {"statusLine", "$schema"}
 # rule (ours or one added by hand) to its Edit(path) equivalent so it actually works.
 WRITE_PATH_RULE = re.compile(r"^Write\((.+)\)$")
 
+# Hook groups invoking one of these scripts are dotfiles-owned: we ship the
+# script, so we own how it is invoked. They are dropped from the live file
+# before the template's groups are appended, making the template authoritative
+# rather than additive. Without this, changing a hook's command line leaves the
+# old group in place and adds the new one beside it -- which is how an
+# already-provisioned workspace ended up running a `python <script>` Stop hook
+# (no `python` on the image, python3 only) on every turn even after the
+# template was fixed. Matched on script name, not full command, so the same
+# group is recognised across command-line rewrites.
+DOTFILES_OWNED_HOOK_SCRIPTS = ("langfuse_hook.py",)
+
 
 def normalize_permission_rule(rule):
     match = WRITE_PATH_RULE.match(rule)
@@ -46,10 +57,23 @@ def merge_permissions(existing, template):
     return result
 
 
+def is_dotfiles_owned_hook_group(group):
+    return any(
+        script in hook.get("command", "")
+        for hook in group.get("hooks", [])
+        for script in DOTFILES_OWNED_HOOK_SCRIPTS
+    )
+
+
 def merge_hooks(existing, template):
-    result = dict(existing)
+    # Prune across every event in the live file, not just the ones the template
+    # still declares, so retiring a hook actually removes it.
+    result = {
+        event: [g for g in groups if not is_dotfiles_owned_hook_group(g)]
+        for event, groups in existing.items()
+    }
     for event, template_groups in template.items():
-        existing_groups = existing.get(event, [])
+        existing_groups = result.get(event, [])
         seen = {json.dumps(g, sort_keys=True) for g in existing_groups}
         merged = list(existing_groups)
         for group in template_groups:
@@ -58,7 +82,8 @@ def merge_hooks(existing, template):
                 seen.add(key)
                 merged.append(group)
         result[event] = merged
-    return result
+    # An event left with no groups is noise; drop the key entirely.
+    return {event: groups for event, groups in result.items() if groups}
 
 
 def merge_plain_dict(existing, template):

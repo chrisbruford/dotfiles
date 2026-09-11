@@ -93,7 +93,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python ~/.claude/hooks/langfuse_hook.py"
+            "command": "if command -v uv >/dev/null 2>&1; then exec uv run --quiet --script __HOME__/.claude/hooks/langfuse_hook.py; else exec python3 __HOME__/.claude/hooks/langfuse_hook.py; fi"
           }
         ]
       }
