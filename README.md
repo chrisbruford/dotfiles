@@ -27,6 +27,7 @@ In Coder, point the workspace's dotfiles URI at this repo and it runs automatica
 | --- | --- | --- |
 | Git identity & defaults | `install.sh` | Global `user.name`/`email`, `main` default branch, `push.autoSetupRemote` |
 | Zsh | `scripts/setup-zsh.sh` | Installs zsh, tmux, oh-my-zsh, powerlevel10k, zsh-autosuggestions; sets zsh as login shell |
+| Node | `scripts/setup-node.sh` | If `node` is not already available (on `PATH` or via an existing nvm), installs nvm and the LTS node and makes it the default; otherwise does nothing |
 | Shell config | `install.sh` | Copies `config/.zshrc`, `config/.zsh_aliases`, `.p10k.zsh` to `$HOME`; adds bash fallback aliases and an `exec zsh` hook to `~/.bashrc` |
 | Vim | `install.sh` | Writes a minimal `~/.vimrc` |
 | Claude Code | `scripts/setup-claude.sh` | Syncs `config/claude/` into `~/.claude/` |
