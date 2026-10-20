@@ -17,6 +17,10 @@ source $ZSH/oh-my-zsh.sh
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.npm-global/bin:$PATH"
 
+# nvm (provides node; a no-op on machines without it)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
 # Aliases
 if [[ "$(uname -s)" == "Darwin" ]]; then
   alias ll='ls -lahG'
