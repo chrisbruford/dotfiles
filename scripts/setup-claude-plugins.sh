@@ -1,6 +1,6 @@
 #!/bin/bash
-# Registers Claude Code plugin marketplaces and installs plugins from dotfiles.
-# Idempotent — `claude plugin marketplace add` / `install` no-op if already present.
+# Installs Claude Code plugins from dotfiles, adding each plugin's marketplace if missing.
+# Idempotent — `claude plugin install` no-ops if already installed. Needs Claude Code >= 2.1.292 (--marketplace).
 set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -16,24 +16,19 @@ if ! command -v python3 &>/dev/null; then
   exit 0
 fi
 
-while IFS=$'\t' read -r name source; do
-  echo "setup-claude-plugins: ensuring marketplace $name"
-  claude plugin marketplace add "$source" || true
-done < <(python3 -c "
+# Captured first so a plugin naming an unlisted marketplace fails the script under set -e.
+pairs=$(python3 -c "
 import json
 data = json.load(open('$MANIFEST'))
-for m in data['marketplaces']:
-    print(f\"{m['name']}\t{m['source']}\")
+sources = {m['name']: m['source'] for m in data['marketplaces']}
+for p in data['plugins']:
+    name, marketplace = p.split('@')
+    print(f'{name}\t{sources[marketplace]}')
 ")
 
-while IFS= read -r plugin; do
-  echo "setup-claude-plugins: ensuring plugin $plugin"
-  claude plugin install "$plugin" -y || true
-done < <(python3 -c "
-import json
-data = json.load(open('$MANIFEST'))
-for p in data['plugins']:
-    print(p)
-")
+while IFS=$'\t' read -r plugin source; do
+  echo "setup-claude-plugins: ensuring plugin $plugin from $source"
+  claude plugin install "$plugin" --marketplace "$source" -y || true
+done <<< "$pairs"
 
 echo "setup-claude-plugins: done"
