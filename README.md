@@ -30,7 +30,7 @@ In Coder, point the workspace's dotfiles URI at this repo and it runs automatica
 | Shell config | `install.sh` | Copies `config/.zshrc`, `config/.zsh_aliases`, `.p10k.zsh` to `$HOME`; adds bash fallback aliases and an `exec zsh` hook to `~/.bashrc` |
 | Vim | `install.sh` | Writes a minimal `~/.vimrc` |
 | Claude Code | `scripts/setup-claude.sh` | Syncs `config/claude/` into `~/.claude/` |
-| Claude plugins | `scripts/setup-claude-plugins.sh` | Adds marketplaces and installs plugins listed in `config/claude/plugins.json` |
+| Claude plugins | `scripts/setup-claude-plugins.sh` | Installs plugins (and their marketplaces) listed in `config/claude/plugins.json` |
 | Codex CLI | `scripts/setup-codex.sh` | Syncs `config/codex/` into `~/.codex/` |
 
 > Files copied into `$HOME` (`.zshrc`, `.zsh_aliases`, `.p10k.zsh`, `.vimrc`, `~/.claude/CLAUDE.md`, agents, skills) are **overwritten** on each run. Make changes here, not in the live copies.
