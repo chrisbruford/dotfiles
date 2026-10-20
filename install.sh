@@ -16,6 +16,10 @@ git config --global push.autoSetupRemote true
 # --- Zsh + oh-my-zsh + powerlevel10k ---
 "$DOTFILES_DIR/scripts/setup-zsh.sh"
 
+# --- Node (via nvm), only if node isn't already available ---
+# Non-fatal: a network hiccup here shouldn't block the rest of the setup.
+"$DOTFILES_DIR/scripts/setup-node.sh" || echo "dotfiles: node setup failed, continuing" >&2
+
 # Set zsh as the login shell (idempotent)
 ZSH_BIN="$(command -v zsh)"
 if [[ "$SHELL" != "$ZSH_BIN" ]]; then
