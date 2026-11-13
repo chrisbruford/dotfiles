@@ -20,6 +20,9 @@ git config --global push.autoSetupRemote true
 # Non-fatal: a network hiccup here shouldn't block the rest of the setup.
 "$DOTFILES_DIR/scripts/setup-node.sh" || echo "dotfiles: node setup failed, continuing" >&2
 
+# --- dotnet global tools (csharp-ls), non-fatal ---
+"$DOTFILES_DIR/scripts/setup-dotnet-tools.sh" || echo "dotfiles: dotnet tools setup failed, continuing" >&2
+
 # Set zsh as the login shell (idempotent)
 ZSH_BIN="$(command -v zsh)"
 if [[ "$SHELL" != "$ZSH_BIN" ]]; then
