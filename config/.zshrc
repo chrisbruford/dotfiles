@@ -16,6 +16,7 @@ source $ZSH/oh-my-zsh.sh
 # Workspace PATH
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.npm-global/bin:$PATH"
+export PATH="$PATH:$HOME/.dotnet/tools"
 
 # nvm (provides node; a no-op on machines without it)
 export NVM_DIR="$HOME/.nvm"
