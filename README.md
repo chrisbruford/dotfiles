@@ -28,7 +28,7 @@ In Coder, point the workspace's dotfiles URI at this repo and it runs automatica
 | Git identity & defaults | `install.sh` | Global `user.name`/`email`, `main` default branch, `push.autoSetupRemote` |
 | Zsh | `scripts/setup-zsh.sh` | Installs zsh, tmux, oh-my-zsh, powerlevel10k, zsh-autosuggestions; sets zsh as login shell |
 | Node | `scripts/setup-node.sh` | If `node` is not already available (on `PATH` or via an existing nvm), installs nvm and the LTS node and makes it the default; otherwise does nothing |
-| Node tools | `scripts/setup-node-tools.sh` | If `npm` is available, installs `typescript-language-server` and `typescript` into `~/.npm-global` (needed by the Claude `typescript-lsp` plugin; on `PATH` via `config/.zshrc`, and kept across nvm node switches) |
+| Node tools | `scripts/setup-node-tools.sh` | If `npm` is available, installs `typescript-language-server` and `typescript` (Claude `typescript-lsp` plugin) and `pyright` (Claude `pyright-lsp` plugin) into `~/.npm-global` (any missing ones only; on `PATH` via `config/.zshrc`, and kept across nvm node switches) |
 | dotnet tools | `scripts/setup-dotnet-tools.sh` | On macOS with Homebrew (a prerequisite), installs the .NET SDK if missing. If `dotnet` is then available, installs the `csharp-ls` global tool (needed by the Claude `csharp-lsp` plugin); `~/.dotnet/tools` is added to `PATH` in `config/.zshrc` |
 | Shell config | `install.sh` | Copies `config/.zshrc`, `config/.zsh_aliases`, `.p10k.zsh` to `$HOME`; adds bash fallback aliases and an `exec zsh` hook to `~/.bashrc` |
 | Vim | `install.sh` | Writes a minimal `~/.vimrc` |

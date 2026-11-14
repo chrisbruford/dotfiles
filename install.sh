@@ -20,7 +20,7 @@ git config --global push.autoSetupRemote true
 # Non-fatal: a network hiccup here shouldn't block the rest of the setup.
 "$DOTFILES_DIR/scripts/setup-node.sh" || echo "dotfiles: node setup failed, continuing" >&2
 
-# --- npm global tools (typescript-language-server), non-fatal ---
+# --- npm global tools (typescript-language-server, pyright), non-fatal ---
 "$DOTFILES_DIR/scripts/setup-node-tools.sh" || echo "dotfiles: node tools setup failed, continuing" >&2
 
 # --- dotnet global tools (csharp-ls), non-fatal ---
