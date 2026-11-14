@@ -1,7 +1,13 @@
 #!/bin/bash
 # Install dotnet global tools (csharp-ls for the Claude Code csharp-lsp plugin).
-# Skips if dotnet is missing or the tool is already installed. Idempotent.
+# Installs the .NET SDK via brew on macOS if missing. Skips if dotnet is still missing or the tool is already installed. Idempotent.
 set -euo pipefail
+
+# macOS only: Linux workspaces get the SDK from their image. Homebrew is a prerequisite, not installed here.
+if ! command -v dotnet &>/dev/null && [[ "$(uname -s)" == "Darwin" ]] && command -v brew &>/dev/null; then
+  echo "setup-dotnet-tools: installing .NET SDK via brew..."
+  brew install --cask dotnet-sdk
+fi
 
 if ! command -v dotnet &>/dev/null; then
   echo "setup-dotnet-tools: dotnet not found, skipping"
